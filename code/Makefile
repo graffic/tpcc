@@ -25,22 +25,26 @@ tpcc: $(objetos_tpcc)
 
 # Modulos
 abm_test.o: abm_test.parmacs.c arbolbmas.h arbolbmas-priv.h readwrite.h
-arbolbmas.o: arbolbmas.c debug.h arbolbmas.h arbolbmas-priv.h readwrite.h
+arbolbmas.o: arbolbmas.parmacs.c debug.h arbolbmas.h arbolbmas-priv.h readwrite.h
 basicgen.o: basicgen.c basicgen.h
 cargador.o: cargador.c cargador.h generador.h debug.h arbolbmas.h comparadores.h registros.h listaenlazada.h
 comparadores.o: comparadores.c registros.h
 generador.o: generador.c generador.h basicgen.h registros.h
 le_test.o: le_test.c listaenlazada.h
-listaenlazada.o: debug.h listaenlazada.h
+listaenlazada.o: debug.h listaenlazada.parmacs.c
 terminal.o: terminal.c terminal.h debug.h
-tpcc.o: tpcc.parmacs.c cargador.h debug.h readwrite.h listaenlazada.h
+tpcc.o: listaenlazada.h tpcc.parmacs.c cargador.h debug.h readwrite.h
 transacciones.o: transacciones.c generador.h cargador.h debug.h basicgen.h registros.h listaenlazada.h arbolbmas.h
-readwrite.h: readwrite.parmacs.h
 readwrite.o: readwrite.parmacs.c readwrite.h
 
 
 # Ficheros salidos del m4
-fuentes_interpretados = tpcc.c readwrite.c readwrite.h
+fuentes_interpretados =\
+	arbolbmas.c \
+	listaenlazada.h \
+	tpcc.c \
+	readwrite.c \
+	readwrite.h
 
 # Transformacion de parmacs a C
 .SUFFIXES: .parmacs.c .parmacs.h

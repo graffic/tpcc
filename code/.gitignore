@@ -6,3 +6,7 @@ le_test
 
 # Objects
 *.o
+
+# Generated headers
+listaenlazada.h
+readwrite.h
