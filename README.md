@@ -6,4 +6,4 @@ Implementation of the [TPCC Benchmark](http://www.tpc.org/tpcc/) using C and
 This is my bachelor thesis from 2005. The repository has two parts:
 
 * The code for the experiments.
-* The [thesis in pdf](thesis.pdf) and the TeX sources for the thesis
+* The [thesis in pdf](https://github.com/graffic/tpcc/raw/master/thesis.pdf) and the TeX sources for the thesis
