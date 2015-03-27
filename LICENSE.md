@@ -27,3 +27,8 @@ SOFTWARE.
 ![Creative Commons License](https://i.creativecommons.org/l/by-sa/4.0/88x31.png)
 
 Implementación en C-PARMACS del Benchmark TPC-C y del SGBD Concurrente by Alfredo Javier Gonel Crespo is licensed under a [Creative Commons Attribution-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-sa/4.0/).
+
+
+# Other
+
+There might be individual pieces of code with their own licenses. Check their headers.
