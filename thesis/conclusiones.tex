@@ -1,0 +1,152 @@
+\chapter{Conclusiones}
+Las conclusiones que se pueden obtener de cualquier desarrollo vienen
+condicionadas por los parámetros o acciones que se deseen observar, o por el
+conocimiento previo de la materia, que puede llevar a pasar por alto logros ya
+conocidos.
+
+De la manera más objetiva posible, y siempre con los dos condicionantes
+anteriores, las conclusiones que se han obtenido en este proyecto son las
+siguientes.
+
+\section{Benchmark TPC-C}
+El benchmark TPC-C, como especificación, es completo y cumple todas las 
+características que se le exigen a un buen análisis de rendimiento. A la hora de
+implementar todos los requerimientos hay que tener un especial cuidado en seguir
+las especificaciones correctamente, debido a que son muchos los requisitos y es
+muy fácil equivocarse.
+
+Al ser muchos los requisitos, no todos han sido implementados; ya se comentó que
+los retardos producidos por el tiempo que el \textit{usuario simulado} tarda en
+introducir los datos en la terminal no se tenían en cuenta. Luego no se han
+podido cumplir todos los requisitos del benchmark TPC-C.
+
+La lista completa de requisitos a los que se ha hecho alusión y no se han
+alcanzado es la siguiente:
+\begin{itemize}
+\item Tiempos de retardo simulados.
+\item Transacciones fallidas: todas se anotan y no se comprueba la porcentaje de
+transacciones que fallan.
+\item Propiedades ACID de las transacciones: se intenta que los cambios
+consistentes, aislados, persistentes y las operaciones sean atómicas. Pero no se
+ha hecho un estudio detallado del cumplimiento de estas propiedades.
+\item No aprovecharse del modo de funcionamiento del benchmark: en esta
+implementación se ha aprovechado la situación de tal manera que se usa una lista
+enlazada para la tabla histórico sabiendo que solo se van a añadir entradas sin
+clave al final.
+\end{itemize}
+
+\section{Árboles de búsqueda}
+A la hora de buscar estructuras que permitan la búsqueda partiendo de una
+clave, se pueden encontrar múltiples alternativas: desde listas, tablas hash,
+índices multinivel estáticos, etc. \cite{navathe}. A la hora de buscar una
+solución para el problema de implementar un sistema de almacenamiento para el
+benchmark TPC-C, se optó por una estructura muy empleada en implementaciones de
+índices: el árbol B+.
+
+El problema de una estructura como el árbol B+, es que tiene gran cantidad de
+detalles en sus operaciones. Se puede encontrar mucha información en libros e
+Internet, pero en muy pocos lugares, por no decir ninguno, se detalla
+completamente una implementación que realmente funcione. Sólo incluyen una
+definición de su estructura, y una descripción superficial de la operación más
+sencilla: la inserción. El resto de detalles necesarios se dejan sin definir,
+\textit{para que el lector trabaje}, etc.
+
+Presentar un diseño completo y una implementación funcional de un árbol B+, ha
+sido uno de los mayores problemas, sobre todo debido a que el árbol es la base
+del almacenamiento del benchmark, y el funcionamiento del benchmark depende
+mucho del funcionamiento del árbol. Para este diseño se han tenido que realizar
+muchas actuaciones del tipo: prueba y error.
+
+Otro problema es el que relaciona la estructura de datos con el lenguaje de
+programación. El lenguaje C no es uno de los más indicados para implementar
+estructuras de alto nivel, y mucho menos genéricas; aunque dada la necesidad de
+portar más tarde la aplicación a RSIM, es el único lenguaje disponible.
+
+Como \textit{conclusión} sobre los árboles B+, se puede obtener que son buenas
+estructuras de búsqueda, y que lo han demostrado en este benchmark, ya que
+después de su implementación, su uso y rendimiento ha sido satisfactorio. 
+
+Como contrapartida, y dado el lenguaje de programación, su implementación ha sido
+muy costosa en cuanto al tiempo empleado, y ha estado plagada de errores en casi
+todas las etapas del desarrollo; sobre todo debido a que ciertos aspectos del
+diseño no se \textit{conocían} de antemano ya que no estaban documentados en
+casi ningún sitio, y parte de la implementación se realizó por ``prueba y error''.
+
+\section{Sincronización}
+La programación concurrente es siempre un aspecto ignorado en la programación de
+aplicaciones. Durante la carrera se tocan ciertos aspectos en la asignatura de
+\textit{Sistemas operativos}, pero hasta que no se aplican dichos conocimientos
+en una aplicación real, no se tiene conciencia de todos los problemas que ello
+supone.
+
+Si bien los paradigmas típicos del \textit{lector-escritor}, o el
+\textit{productor-consumidor}, son bien conocidos; su aplicación en un sistema
+concreto es el verdadero reto del analista y/o programador.
+
+En este caso el lenguaje C, no es que provea de un sistema de sincronización,
+sino que se depende de la funcionalidad del sistema operativo. Para intentar
+abstraerse un poco de esto, se ha utilizado la colección de macros PARMACS.
+
+Durante el desarrollo de esta aplicación, sobre todo a la hora de sincronizar
+las lecturas y escrituras en el subsistema de almacenamiento, se ha obtenido una
+experiencia muy valiosa en sistemas concurrentes.
+
+Por otro lado, y centrándonos en la implementación de la sincronización del
+árbol B+ y del problema de los lectores escritores. La implementación de una
+solución al problema de lectores escritores no es algo complicado, el problema,
+como se comento anteriormente, es ``sembrar'' el código realizado para un solo
+proceso con dicha implementación, y que realmente se solucione el problema. Que
+funcione no es la solución al problema, ya que en la programación concurrente,
+si no se parte de un diseño correcto, la solución puede funcionar $N$ veces,
+pero no la vez $N+1$.
+
+Como \textit{conclusión} en este aspecto, el sincronizar una estructura de datos
+de manera correcta y transparente a los procesos que la utilizan, es un trabajo
+tedioso que requiere múltiples revisiones y varios puntos de vista para lograr
+tener en cuenta todas las situaciones posibles.
+
+\section{Medidas de rendimiento}
+Uno de los objetivos de está implementación, es disponer de una aplicación que
+nos provea de una medida de rendimiento de un sistema concreto. Lo más normal en
+estos casos es buscar una aplicación ya construida, ejecutarla y obtener dicha
+medida; pero como ya se ha visto en los fundamentos teóricos, una medida de
+rendimiento, y por lo tanto un benchmark requieren cumplir ciertas normas.
+
+Sin conocer nada sobre las medidas de rendimiento, los benchmark y los análisis
+de rendimiento, los resultados a los que se puede llegar después de leer unas
+especificaciones como las del TPC-C pueden ser totalmente erróneos. Las
+especificaciones del benchmark TPC-C están construidas en base a estas reglas,
+intentan cumplirlas, y por ello es muy necesario tener estos conceptos claros
+antes de entender el análisis.
+
+Una vez se sepa qué se busca con una medida de rendimiento, sus fallos más
+comunes, las reglas, conocer algunas medidas existentes, etc. Se puede dar un
+paso más e intentar comprender el benchmark TPC-C para más tarde implementarlo.
+
+La \textit{conclusión} de este apartado, es que es necesario un conocimiento
+previo de la teoría de medidas de rendimiento, antes de analizar un benchmark
+para poder extraer correctamente todos los puntos, y no implementar un sistema
+con errores desde el principio.
+
+\section{Conclusión final}
+Los objetivos que se plantearon en un principio de han logrado, aunque con
+algunas restricciones como se comentó para el benchmark TPC-C. Se ha logrado:
+\begin{itemize}
+\item Obtener una aplicación con la que realizar medidas de rendimiento. Esta
+implementación es ya un benchmark más a añadir a la biblioteca de benchmarks
+disponibles tanto para el grupo de Arquitectura y Tecnología de Computadores,
+como para el resto de interesados en medidas de rendimiento.
+\item Utilizar y ampliar los conocimientos obtenidos a lo largo de la carrera.
+Se han afrontado problemas, y mediante soluciones ya conocidas o investigación
+de aquellos problemas no conocidos, se ha construido la solución.
+\end{itemize}
+
+Pero la implementación de las especificaciones del benchmark TPC-C es solo el
+comienzo del futuro de la aplicación. Se buscaba obtener una implementación que
+más tarde pudiera ser ejecutada en RSIM; si bien se ha conseguido dicha
+implementación, queda el paso mas importante: ejecutarla en RSIM. Solo ha sido
+el primer paso, los siguientes serán: adaptarlo a las peculiaridades de RSIM,
+completar la implementación ya que como se comentó hay requisitos incompletos; y
+por último, estudiar el comportamiento de la aplicación en RSIM, a la vez que se
+experimenta con los trabajos del grupo de Arquitectura y Tecnología de
+Computadores en cuanto a los protocolos de coherencia caché.

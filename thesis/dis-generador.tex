@@ -1,0 +1,718 @@
+\section{Subsistema generador}
+El subsistema generador es el encargado de obtener dos tipos de datos:
+\begin{itemize}
+\item El poblado inicial para el subsistema de almacenamiento.
+\item La carga que las terminales van a enviar a los servidores.
+\end{itemize}
+
+Para generar la carga, implementan las especificaciones que se pueden encontrar
+a lo largo del apartado \ref{sec:requisitos} (pag. \pageref{sec:requisitos}).
+Durante el análisis del benchmark TPC-C se especificaron:
+\begin{itemize}
+\item Las diferentes tablas donde almacenar datos.
+\item La descripción exacta de cada registro.
+\item Qué cantidades hacen falta de cada registro.
+\item Cómo generar dichas cantidades.
+\item Cuántas y cómo repartir las diferentes transacciones para que se cumpla el
+porcentaje asignado a cada una.
+\end{itemize}
+
+Los ficheros que integran este subsistema, junto con su funcionalidad son los
+siguientes:
+\begin{itemize}
+\item \texttt{registros.h} Especificaciones de los registros: atributos, formato
+para escribirlos en un fichero y formato para recuperarles de un fichero.
+\item \texttt{basicgen.c basicgen.h} Dado que ciertos datos se generan de manera
+aleatoria con unas especificaciones, dicha generación se repite en muchas
+ocasiones, por lo que aquí se han agrupado las funciones de generación de datos
+más utilizadas.
+\item \texttt{generador.h} Configura el generador con las cardinalidades de
+poblado de las diferentes tablas, así como en que ficheros volcar los datos.
+\item \texttt{generador.c} Programa independiente que al ejecutarse genera un
+\textit{experimento}, consistente en: una carga de trabajo y un poblado.
+\end{itemize}
+
+\subsection{Diseño e implementación de los registros}
+Dado que el lenguaje de programación es C, hay que adaptar los tipos de
+atributos especificados en el análisis a tipos de datos lo más sencillos posibles
+que podamos encontrar en C. Se han resumido los siguientes tipos de datos, con
+sus equivalencias en el lenguaje C:
+\begin{itemize}
+\item Identificadores de cualquier tipo: \texttt{uint32\_t atrib;}
+\item Texto tamaño variable, N: \texttt{char atrib[N+1];}
+\item Texto tamaño fijo, N: \texttt{char atrib[N+1];}
+\item Números hasta 9 dígitos: \texttt{uint32\_t atrib;}
+\item Números hasta 19 dígitos: \texttt{uint64\_t atrib;}
+\item Fecha y hora: \texttt{time\_t atrib;}
+\end{itemize}
+
+Para los números con decimales, se les ha normalizado multiplicándoles por el
+número de ceros necesarios para que no se utilicen decimales. Por ejemplo, para
+la unidad monetaria, que en nuestro caso son los euros, dado que existen
+céntimos de euro, se ha multiplicado dicha unidad por 100. Esto,
+a la hora de realizar las operaciones, se tiene en cuenta, y se ha modificado
+la lógica de negocio para que se trabaje con céntimos de euro en vez de euros.
+Para el resto de medidas que también se han modificado, como pueden ser
+descuentos u otros porcentajes, también se ha modificado la manera de operar
+para no utilizar decimales.
+
+En cada registro se ha dispuesto una constante que indica el tamaño
+de la clave, para hacer más fácil su implementación. Otras constantes que se
+pueden encontrar en los registros son las relacionadas con la lectura y
+escritura en disco, para usar con las funciones \textit{fprintf} y
+\textit{fscanf}, de la biblioteca estándar de entrada y salida en C.
+
+Veamos la composición y características de los diferentes registros. Las
+constantes que definen los formatos de entrada y salida no se han incluido
+debido a su ilegibilidad, pero se ha incluido una referencia a su posición en el
+fichero \texttt{registros.h}.
+
+\paragraph{$\triangleright$ Registro Almacén}
+\begin{itemize}
+\item Tamaño de la clave de los registro del tipo \textit{almacén}:\\
+\texttt{\#define REGALMACEN\_KEYSIZE sizeof(struct \{uint32\_t w\_id;\})}
+
+\item Cadena para el volcado del registro \textit{almacén} vía *printf:\\
+\texttt{\#define DUMPSTRING\_ALMACEN} (línea 25)
+
+\item Cadena para la lectura del registro \textit{almacén} vía *scanf:\\
+\texttt{\#define READSTRING\_ALMACEN} (línea 27)
+
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{almacén} (alm):\\
+\texttt{\#define DUMPPARAM\_ALMACEN(alm)} (línea 29)
+
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{almacén} (alm):\\
+\texttt{\#define READPARAM\_ALMACEN(alm)} (línea 32)
+                               
+\item Registro equivalente a una tupla de la tabla Almacén:\\
+\texttt{struct struct\_RegAlmacen}:
+	\begin{itemize}
+	\item \texttt{uint32\_t w\_id;}
+	\item \texttt{char      w\_name[11];}
+	\item \texttt{char      w\_street\_1[21];}
+	\item \texttt{char      w\_street\_2[21];}
+	\item \texttt{char      w\_city[21];}
+	\item \texttt{char      w\_state[3];}
+	\item \texttt{char      w\_zip[10];}
+	\item \texttt{uint32\_t w\_tax;}
+	\item \texttt{uint64\_t w\_ytd;}
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro Zona} 
+\begin{itemize}
+\item Tamaño de la clave de los registro del tipo \textit{zona}:\\
+\texttt{\#define REGZONA\_KEYSIZE sizeof(struct \{uint32\_t d\_id;\})}
+
+\item Cadena para el volcado del registro \textit{zona} vía *printf:\\
+\texttt{\#define DUMPSTRING\_ZONA} (línea 53)
+
+\item Cadena para la lectura del registro \textit{zona} vía *scanf:\\
+\texttt{\#define READSTRING\_ZONA} (línea 55)
+
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{zona} (zon):\\
+\texttt{\#define DUMPPARAM\_ZONA(zon)} (línea 57)
+
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{zona} (zon):\\
+\texttt{\#define READPARAM\_ZONA(zon)} (línea 60)
+
+\item Registro equivalente a una tupla de la tabla Zona:\\
+\texttt{struct struct\_RegZona}:
+	\begin{itemize}
+	\item \texttt{uint32\_t d\_id;}
+	\item \texttt{uint32\_t d\_w\_id;}
+	\item \texttt{char      d\_name[11];}
+	\item \texttt{char      d\_street\_1[21];}
+	\item \texttt{char      d\_street\_2[21];}
+	\item \texttt{char      d\_city[21];}
+	\item \texttt{char      d\_state[3];}
+	\item \texttt{char      d\_zip[9];}
+	\item \texttt{uint32\_t d\_tax;}
+	\item \texttt{uint64\_t d\_ytd;}
+	\item \texttt{uint32\_t d\_next\_o\_id;}
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro Cliente}
+\begin{itemize}
+\item Tamaño de la clave de los registro del tipo \textit{cliente}:\\
+\texttt{\#define REGCLIENTE\_KEYSIZE sizeof(struct \{uint32\_t c\_id; uint32\_t
+c\_d\_id; uint32\_t c\_w\_id;\})}
+\item Cadena para el volcado del registro \textit{cliente} vía *printf:\\
+\texttt{\#define DUMPSTRING\_CLIENTE} (línea 83)
+\item Cadena para la lectura del registro \textit{cliente} vía *scanf:\\
+\texttt{\#define READSTRING\_CLIENTE} (línea 85)
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{cliente} (cl):\\
+\texttt{\#define DUMPPARAM\_CLIENTE(cl)} (línea 87)
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{cliente} (cl):\\
+\texttt{\#define READPARAM\_CLIENTE(cl)} (línea 92)
+\item Registro equivalente a una tupla de la tabla Cliente:\\
+\texttt{struct struct\_RegCliente}
+	\begin{itemize}
+	\item \texttt{uint32\_t c\_id;} (Campo clave)
+	\item \texttt{uint32\_t c\_d\_id;} (Campo clave)
+	\item \texttt{uint32\_t c\_w\_id;} (Campo clave)
+	\item \texttt{char      c\_first[17];}
+	\item \texttt{char      c\_middle[3];}
+	\item \texttt{char      c\_last[17];}
+	\item \texttt{char      c\_street\_1[21];}
+	\item \texttt{char      c\_street\_2[21];}
+	\item \texttt{char      c\_city[21];}
+	\item \texttt{char      c\_state[3];}
+	\item \texttt{char      c\_zip[10];}
+	\item \texttt{char      c\_phone [17];}
+	\item \texttt{time\_t    c\_since;}
+	\item \texttt{char      c\_credit[3];}
+	\item \texttt{uint64\_t c\_credit\_lim;}
+	\item \texttt{uint32\_t c\_discount;}
+	\item \texttt{int64\_t c\_balance;}
+	\item \texttt{uint64\_t c\_ytd\_payment;}
+	\item \texttt{uint32\_t c\_payment\_cnt;}
+	\item \texttt{uint32\_t c\_delivery\_cnt;}
+	\item \texttt{char      c\_data[501];}
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro Histórico}
+\begin{itemize}
+\item Tamaño de la clave de los registro del tipo \textit{histórico}:\\
+\texttt{\#define REGHISTORICO\_KEYSIZE 0}
+\item Cadena para el volcado del registro \textit{histórico} vía *printf:\\ 
+\texttt{\#define DUMPSTRING\_HISTORICO} (línea 126)
+\item Cadena para la lectura del registro \textit{histórico} vía *scanf:\\
+\texttt{\#define READSTRING\_HISTORICO} (línea 127)
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{histórico} (his):\\
+\texttt{\#define DUMPPARAM\_HISTORICO(his)} (línea 128)
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{histórico} (his):\\
+\texttt{\#define READPARAM\_HISTORICO(his)} (línea 130)
+\item Registro equivalente a una tupla de la tabla Histórico:\\
+\texttt{struct struct\_RegHistorico}
+	\begin{itemize}
+	\item \texttt{uint32\_t h\_c\_id;}
+	\item \texttt{uint32\_t h\_c\_d\_id;}
+	\item \texttt{uint32\_t h\_c\_w\_id;}
+	\item \texttt{uint32\_t h\_d\_id;}
+	\item \texttt{uint32\_t h\_w\_id;}
+	\item \texttt{time\_t    h\_date;}
+	\item \texttt{uint32\_t h\_amount;}
+	\item \texttt{char      h\_data[25];}
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro NuevoPedido}
+\begin{itemize}
+\item Tamaño de la clave de los registro del tipo \textit{nuevo pedido}:\\
+\texttt{\#define REGNUEVOPEDIDO\_KEYSIZE sizeof(struct \{uint32\_t no\_o\_id;
+uint32\_t no\_d\_id; uint32\_t no\_w\_id;\})}
+\item Cadena para el volcado del registro \textit{NuevoPedido} vía *printf:\\
+\texttt{\#define DUMPSTRING\_NUEVOPEDIDO} (línea 149)
+\item Cadena para la lectura del registro \textit{NuevoPedido} vía *scanf:\\
+\texttt{\#define READSTRING\_NUEVOPEDIDO DUMPSTRING\_NUEVOPEDIDO}
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{NuevoPedido} (np):\\
+\texttt{\#define DUMPPARAM\_NUEVOPEDIDO(np)} (línea 151)
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{NuevoPedido} (np):\\
+\texttt{\#define READPARAM\_NUEVOPEDIDO(np)} (línea 152)
+\item Registro equivalente a una tupla de la tabla NuevoPedido:\\ 
+\texttt {struct struct\_RegNuevoPedido}
+	\begin{itemize}
+	\item \texttt{uint32\_t no\_o\_id;} (Campo clave)
+	\item \texttt{uint32\_t no\_d\_id;} (Campo clave)
+	\item \texttt{uint32\_t no\_w\_id;} (Campo clave)
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro Pedido}
+\begin{itemize}
+\item Tamaño de la clave de los registro del tipo \textit{pedido}:\\
+\texttt{\#define REGPEDIDO\_KEYSIZE sizeof(struct \{uint32\_t o\_id; uint32\_t
+o\_d\_id; uint32\_t o\_w\_id;\})}
+\item Cadena para el volcado del registro \textit{pedido} vía *printf:\\
+\texttt{\#define DUMPSTRING\_PEDIDO} (línea 165)
+\item Cadena para la lectura del registro \textit{pedido} vía *scanf:\\
+\texttt{\#define READSTRING\_PEDIDO DUMPSTRING\_PEDIDO}
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{pedido} (ped):\\
+\texttt{\#define DUMPPARAM\_PEDIDO(ped)} (línea 167)
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro 
+\textit{pedido} (ped):\\
+\texttt{\#define READPARAM\_PEDIDO(ped)} (línea 169)
+\item Registro equivalente a una tupla de la tabla Pedido:\\
+\texttt{struct struct\_RegPedido}
+	\begin{itemize}
+	\item \texttt{uint32\_t o\_id;} (Campo clave)
+	\item \texttt{uint32\_t o\_d\_id;} (Campo clave)
+	\item \texttt{uint32\_t o\_w\_id;} (Campo clave)
+	\item \texttt{uint32\_t o\_c\_id;}
+	\item \texttt{time\_t   o\_entry\_d;}
+	\item \texttt{uint32\_t o\_carrier\_id;}
+	\item \texttt{uint32\_t o\_ol\_cnt;}
+	\item \texttt{uint32\_t o\_all\_local;}
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro LíneaPedido}
+\begin{itemize}
+\item Tamaño de la clave de los registro del tipo \textit{LineaPedido}:\\ 
+\texttt{\#define REGLINEAPEDIDO\_KEYSIZE sizeof(struct \{uint32\_t ol\_i\_id; 
+uint32\_t ol\_d\_id; uint32\_t ol\_w\_id; uint32\_t ol\_number;\})}
+\item Cadena para el volcado del registro \textit{LíneaPedido} vía *printf:\\
+\texttt{\#define DUMPSTRING\_LINEAPEDIDO} (línea 188)
+\item Cadena para la lectura del registro \textit{LíneaPedido} vía *scanf:\\
+\texttt{\#define READSTRING\_LINEAPEDIDO} (línea 189)
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{LíneaPedido} (lp):\\
+\texttt{\#define DUMPPARAM\_LINEAPEDIDO(lp)} (línea 190)
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{LíneaPedido} (lp):\\
+\texttt{\#define READPARAM\_LINEAPEDIDO(lp)} (línea 193)
+\item Registro equivalente a una tupla de la tabla LíneaPedido:\\
+\texttt{struct struct\_RegLineaPedido}
+	\begin{itemize}
+	\item \texttt{uint32\_t ol\_o\_id;} (Campo clave)
+	\item \texttt{uint32\_t ol\_d\_id;} (Campo clave)
+	\item \texttt{uint32\_t ol\_w\_id;} (Campo clave)
+	\item \texttt{uint32\_t ol\_number;} (Campo clave)
+	\item \texttt{uint32\_t ol\_i\_id;}
+	\item \texttt{uint32\_t ol\_supply\_w\_id;}
+	\item \texttt{time\_t   ol\_delivery\_d;}
+	\item \texttt{uint32\_t ol\_quantity;}
+	\item \texttt{uint32\_t ol\_amount;}
+	\item \texttt{char      ol\_dist\_info[25];}
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro Existencias}
+\begin{itemize}
+\item  Tamaño de la clave de los registros del tipo \textit{existencias}:\\
+\texttt{\#define REGEXISTENCIAS\_KEYSIZE sizeof(struct \{uint32\_t
+s\_id; uint32\_t s\_w\_id;\})}
+\item Cadena para el volcado del registro \textit{existencias} vía *printf:\\
+\texttt{\#define DUMPSTRING\_EXISTENCIAS} (linea 215)
+\item Cadena para la lectura del registro \textit{existencias} vía *scanf:\\
+\texttt{\#define READSTRING\_EXISTENCIAS} (línea 216)
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{existencias} (ex):\\
+\texttt{\#define DUMPPARAM\_EXISTENCIAS(ex)} (línea 217)
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{existencias} (ex):\\
+\texttt{\#define READPARAM\_EXISTENCIAS(ex)} (línea 220)
+\item Registro equivalente a una tupla de la tabla Existencias:\\
+\texttt{struct struct\_RegExistencias}
+	\begin{itemize}
+	\item \texttt{uint32\_t s\_i\_id;} (Campo clave)
+	\item \texttt{uint32\_t s\_w\_id;} (Campo clave)
+	\item \texttt{uint32\_t s\_quantity;}
+	\item \texttt{char      s\_dist\_01[25];}
+	\item \texttt{char      s\_dist\_02[25];}
+	\item \texttt{char      s\_dist\_03[25];}
+	\item \texttt{char      s\_dist\_04[25];}
+	\item \texttt{char      s\_dist\_05[25];}
+	\item \texttt{char      s\_dist\_06[25];}
+	\item \texttt{char      s\_dist\_07[25];}
+	\item \texttt{char      s\_dist\_08[25];}
+	\item \texttt{char      s\_dist\_09[25];}
+	\item \texttt{char      s\_dist\_10[25];}
+	\item \texttt{uint32\_t s\_ytd;}
+	\item \texttt{uint32\_t s\_order\_cnt;}
+	\item \texttt{uint32\_t s\_remote\_cnt;}
+	\item \texttt{char      s\_data[51];}
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ Registro Producto}
+\begin{itemize}
+\item Tamaño de la clave de los registros del tipo \textit{producto}:\\
+\texttt{\#define REGPRODUCTO\_KEYSIZE sizeof(struct \{uint32\_t i\_id;\})}
+\item Cadena para el volcado del registro \textit{producto} vía *printf:\\
+\texttt{\#define DUMPSTRING\_PRODUCTO} (línea 250)
+\item Cadena para la lectura del registro \textit{producto} vía *scanf:\\
+\texttt{\#define READSTRING\_PRODUCTO} (línea 251)
+\item Parámetros a usar con la cadena de volcado, partiendo de un registro
+\textit{producto} (prod):\\
+\texttt{\#define DUMPPARAM\_PRODUCTO(prod)} (línea 252)
+\item Parámetros a usar con la cadena de lectura, partiendo de un registro
+\textit{producto} (prod):\\
+\texttt{\#define READPARAM\_PRODUCTO(prod)} (línea 253)
+\item Registro equivalente a una tupla de la tabla Productos:\\
+\texttt{struct struct\_RegProducto}
+	\begin{itemize}
+	\item \texttt{uint32\_t i\_id;} (Campo clave)
+	\item \texttt{uint32\_t i\_im\_id;}
+	\item \texttt{char      i\_name[25];}
+	\item \texttt{uint32\_t i\_price;}
+	\item \texttt{char      i\_data[51];}
+	\end{itemize}
+\end{itemize}
+
+\subsubsection{Tipos de datos}
+Para un uso más simple y una implementación más clara, con los registros
+actuales se han definido los siguientes tipos de datos.
+\paragraph{$\triangleright$ RegAlmacen}
+Se define el registro de la tabla de almacenes RegAlmacen como:\\
+\texttt{typedef struct struct\_RegAlmacen     RegAlmacen;    }
+
+\paragraph{$\triangleright$ RegZona}
+Se define el registro de la tabla de zonas RegZona como:\\
+\texttt{typedef struct struct\_RegZona        RegZona;       }
+
+\paragraph{$\triangleright$ RegCliente}
+Se define el registro de la tabla de clientes RegCliente como:\\
+\texttt{typedef struct struct\_RegCliente     RegCliente;    }
+
+\paragraph{$\triangleright$ RegHistorico}
+Se define el registro de la tabla del histórico de pedidos RegHistorico como:\\
+\texttt{typedef struct struct\_RegHistorico   RegHistorico;  }
+
+\paragraph{$\triangleright$ RegNuevoPedido}
+Se define el registro de la tabla de nuevos pedidos RegNuevoPedido como:\\
+\texttt{typedef struct struct\_RegNuevoPedido RegNuevoPedido;}
+
+\paragraph{$\triangleright$ RegPedido}
+Se define el registro de la tabla de pedidos como:\\
+\texttt{typedef struct struct\_RegPedido      RegPedido;     }
+
+\paragraph{$\triangleright$ RegLineaPedido}
+Se define el registro de la tabla de líneas de pedido RegLineaPedido como:\\
+\texttt{typedef struct struct\_RegLineaPedido RegLineaPedido;}
+
+\paragraph{$\triangleright$ RegExistencias}
+Se define el registro de la tabla de existencias como:\\
+\texttt{typedef struct struct\_RegExistencias RegExistencias;}
+
+\paragraph{$\triangleright$ RegProducto}
+Se define el registro de la tabla de productos RegProducto como:\\
+\texttt{typedef struct struct\_RegProducto    RegProducto;   }
+
+\subsection{Generadores básicos}
+A la hora de cumplir con los requisitos del análisis en cuanto a la generación
+de ciertos campos, se utilizan las funciones del módulo \texttt{basicgen.c}.
+Estos generadores básicos se usan tanto para generar el poblado como para
+generar la carga de trabajo de los servidores.
+Los generadores básicos que se han implementado son los siguientes.
+
+\paragraph{$\triangleright$ gen\_last}
+\begin{itemize}
+\item Declaración: \texttt{void gen\_last(char *last,int num)}
+\item Descripción: Genera un apellido según las reglas del benchmark TPC-C.
+    Los apellidos se crean a partir de un número de 3 dígitos, donde cada dígito equivale 
+    a un vocablo. Los 3 vocablos concatenados forman el apellido.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{char *last} (salida): Lugar donde almacenar el apellido
+	generado.
+        \item \texttt{int num} (entrada): Número de 3 dígitos con el cual
+	generar el apellido..
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ gen\_a\_string}
+\begin{itemize}
+\item Declaración: \texttt{void gen\_a\_string(char *destino,int a, int b)}
+\item Descripción: Genera una cadena de caracteres aleatorios.
+    Dado un número mínimo de caracteres y un número máximo, se crea una
+    cadena con caracteres aleatorios entre esas dos posiciones, ambas inclusive. 
+    Aunque tiene ciertas restricciones:
+	\begin{itemize}
+    \item No empieza las cadenas con espacios.
+    \item No termina las cadenas con espacios.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{char *destino} (salida): Lugar donde colocar la cadena
+	generada.
+        \item \texttt{int a} (entrada): Número mínimo de caracteres.
+        \item \texttt{int b} (entrada): Número máximo de caracteres.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ gen\_n\_string}
+\begin{itemize}
+\item Declaración: \texttt{void gen\_n\_string(char *destino,uint32\_t a,uint32\_t b)}
+\item Descripción: Genera una cadena de dígitos aleatorios.
+   Con un mínimo y un máximo de longitud, genera una cadena de dígitos 
+   decimales aleatorios con una longitud aleatoria entre los dos límites, ambos
+   incluidos.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{char *destino} (salida): Lugar donde colocar la cadena
+	generada.
+        \item \texttt{uint32\_t a} (entrada): Número mínimo de dígitos.
+        \item \texttt{uint32\_t b} (entrada): Número máximo de dígitos.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ gen\_zip}
+\begin{itemize}
+\item Declaración: \texttt{void gen\_zip (char *destino)}
+\item Descripción: Genera un código postal.
+   Según los requisitos, un código postal se
+   crea concatenando a una cadena aleatoria de 4 dígitos, la cadena ``1111''.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{char *destino} (salida): Lugar donde colocar el código
+postal generado.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ gen\_number}
+\begin{itemize}
+\item Declaración: \texttt{uint32\_t gen\_number(uint32\_t a,uint32\_t b)}
+\item Descripción: Genera un número entero positivo entre dos valores, ambos
+incluidos en los posibles valores de salida.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{uint32\_t a} (entrada): Valor mínimo.
+        \item \texttt{uint32\_t b} (entrada): Valor máximo.
+        \end{itemize}
+\item Devuelve: Un entero sin signo generado aleatoriamente.
+\end{itemize}
+
+\paragraph{$\triangleright$ gen\_NURand}
+\begin{itemize}
+\item Declaración: \texttt{\#define gen\_NURand(A,x,y) ((((gen\_number(0,A) |
+gen\_number(x,y))+CValue) \% (y-x+1))+x)}
+\item Descripción: Macro utilizada para generar un número aleatorio mediante una
+distribución no uniforme. Necesita de la variable CValue para funcionar
+correctamente
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{A} (entrada): Constante de trabajo cuyo valor es:
+		\begin{itemize}
+		\item Para el rango [0\ldots 999], 255 
+		\item Para el rango [0\ldots 3.000], 1.023 
+		\item Para el rango [0\ldots 100.000], 8.191 
+		\end{itemize}
+        \item \texttt{x} (entrada): Valor mínimo.
+        \item \texttt{y} (entrada): Valor máximo.
+        \end{itemize}
+\item Devuelve: un número aleatorio no uniforme.
+\end{itemize}
+
+Y por último, en \texttt{basicgen.h}, tenemos algunos parámetros con los que
+variar el funcionamiento de los generadores básicos. Dichos parámetros son:
+\paragraph{$\triangleright$ MAPA\_NUMEROS}
+Cadena de caracteres que indica con que dígitos se va a trabajar a la hora de
+interpretar un número y convertirlo en una cadena de caracteres. Se define
+como:\\
+\texttt{\#define MAPA\_NUMEROS    ``0123456789''}
+
+Y su longitud, para acelerar el funcionamiento, se indica de esta manera:\\
+\texttt{\#define MAPANUM\_LEN     10}
+
+\paragraph{$\triangleright$ MAPA\_CARACTERES}
+Cuando se generan cadenas de caracteres aleatorios, los caracteres a incluir en
+esa cadena generada se obtienen de la cadena MAPA\_CARACTERES. Se define como:\\
+\texttt{\#define MAPA\_CARACTERES
+``abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -\_.''}
+
+Y su longitud, para acelerar el funcionamiento, se indica de la siguiente manera:\\
+\texttt{\#define MAPACAR\_LEN     66}
+
+\subsection{Terminales simuladas}
+Por un lado está el poblado de datos, cuya generación es muy sencilla (ver
+apartado \ref{sec:poblado}); pero por otro está la carga de trabajo. La carga de
+trabajo son los datos que necesita cada transacción para empezar a funcionar; si
+se revisan las especificaciones de cada transacción, se verá que primero se
+reunen unos cuantos datos iniciales, que son facilitados por el usuario de la
+terminal, y con dichos datos se lanza la transacción.
+
+Para simular esta entrada/salida, los datos que las terminales enviarían al
+servidor para que realizase una transacción se van a guardar en un fichero de
+carga (uno por cada servidor); y el módulo encargado de fabricar esos ficheros
+es el que codifica el fichero \texttt{terminal.c}
+
+\subsubsection{Interfaz público}
+El generador, por cada servidor que le pidan que genere unos datos, creará un
+fichero donde guardar dichos datos y le pedirá al simulador de terminales que
+genere la carga de $n$ transacciones en dicho fichero. Esto lo hace a través de
+la función: terminal\_tpcc.
+
+\paragraph{$\triangleright$ terminal\_tpcc}
+\begin{itemize}
+\item Declaración: \texttt{void terminal\_tpcc(FILE *fich,uint64\_t numTran);}
+\item Descripción: Genera carga de trabajo. Dado un fichero de destino y un
+número de transacciones para las que generar carga, va barajando una baraja de
+transacciones (segundo método para conseguir la proporción de transacciones,
+pag. \pageref{sec:reglastransacciones}), y va generando de manera aleatoria la
+carga para cada transacción.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{FILE *fich} (entrada): puntero al descriptor del fichero
+	utilizado para almacenar la carga de trabajo.
+        \item \texttt{uint64\_t numTran} (entrada): Número de transacciones para
+	generar carga. 
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Interfaz privado}
+Internamente, después de seleccionar el tipo de transacción para la cual se va a
+generar carga, acude a una función especializada en generar carga de cada tipo
+de transacción, pasándole como parámetro el fichero donde debe volcar la carga.
+Dichas funciones, de uso interno de terminal\_tpcc son:
+
+\begin{itemize}
+\item \texttt{void term\_nuevo\_pedido     (FILE *);} Genera los datos iniciales para
+una transacción de nuevo pedido.
+\item \texttt{void term\_pago             (FILE *);} Genera los datos iniciales para
+una transacción de pago.
+\item \texttt{void term\_estado\_pedido    (FILE *);} Genera los datos iniciales para
+una transacción de estado de un pedido.
+\item \texttt{void term\_envio            (FILE *);} Genera los datos iniciales para
+una transacción de envío.
+\item \texttt{void term\_nivel\_existencias(FILE *);}
+\end{itemize}
+
+\subsubsection{Formato de la salida}
+Todas estas funciones, insertan una sola
+linea de texto ascii con campos separados por tabuladores que contiene los datos
+necesarios para realizar la transacción, dicha línea va precedida de un número
+que identifica a cada tipo de transacción:
+\begin{itemize}
+\item 0 para nuevo pedido.
+\item 1 para pago.
+\item 2 para estado de un pedido.
+\item 3 para envío.
+\item 4 para nivel de existencias.
+\end{itemize}
+
+Además, la función de nuevo pedido, dado que necesita indicar los datos de las
+líneas de pedido, inserta tantas líneas como líneas de pedido; pero dichas
+líneas no tienen un número delante que las identifique. Al leer los datos para
+una transacción de nuevo pedido, se lee primero la línea marcada con un 0, y en
+dicha línea se encuentra el número de líneas de pedido, que son las que se
+extraerán del fichero.
+
+Los formatos de entrada y de salida se definen en el fichero
+\texttt{terminal.h}, son para las funciones fprintf (salida) y fscanf(entrada); 
+son los siguientes:
+\begin{itemize}
+\item Formatos de salida para los datos que necesitan las diferentes
+transacciones para ejecutarse:
+	\begin{itemize}
+	\item Transacción de nuevo pedido:\\
+\texttt{\#define DS\_TERM\_NUEVOPEDIDO     ``0$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+	\item Transacción de nuevo pedido, cada línea de pedido:\\
+\texttt{\#define DS\_TERM\_LINEAPEDIDO      ``$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+	\item Transacción de pago:\\
+\texttt{\#define DS\_TERM\_PAGO
+``1$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%s$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t$\backslash$n''}
+	\item Transacción de estado de un pedido:\\
+\texttt{\#define DS\_TERM\_ESTADOPEDIDO     ``2$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%s$\backslash$n''}
+	\item Transacción de envío:\\
+\texttt{\#define DS\_TERM\_ENVIO            ``3$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+	\item Transacción de nivel de existencias:\\
+\texttt{\#define DS\_TERM\_NIVELEXISTENCIAS ``4$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+	\end{itemize}
+\item Para la lectura desde fichero (entrada) de los datos que necesitan las
+diferentes transacciones:
+	\begin{itemize}
+\item Transacción de nuevo pedido:\\
+\texttt{\#define RS\_TERM\_NUEVOPEDIDO      ``\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+\item Transacción de nuevo pedido, cada línea de pedido:\\
+\texttt{\#define RS\_TERM\_LINEAPEDIDO      ``$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+\item Transacción de pago:\\
+\texttt{\#define RS\_TERM\_PAGO             ``\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%s$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t$\backslash$n''}
+\item Transacción de estado de pedido:\\
+\texttt{\#define RS\_TERM\_ESTADOPEDIDO     ``\%u$\backslash$t\%u$\backslash$t\%u$\backslash$t\%s$\backslash$n''}
+\item Transacción de envío:\\
+\texttt{\#define RS\_TERM\_ENVIO            ``\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+\item Transacción de nivel de existencias:\\
+\texttt{\#define RS\_TERM\_NIVELEXISTENCIAS ``\%u$\backslash$t\%u$\backslash$t\%u$\backslash$n''}
+	\end{itemize}
+\end{itemize}
+
+\subsection{Generador de carga y poblado}
+Por último, la aplicación generador, que se utiliza para obtener el poblado y la
+carga de datos. Su interfaz con el usuario es a través de opciones indicadas en la
+línea de órdenes y devuelve su trabajo en forma de ficheros. A la salida que se
+genera se le llama \textit{experimento}.
+
+\subsubsection{Parámetros a la hora de generar un experimento}
+Los siguientes parámetros se pueden indicar en la línea de órdenes a la hora de
+ejecutar el generador para variar su funcionamiento.
+\begin{itemize}
+\item \texttt{-h} Muestra un mensaje de ayuda con los parámetros y sus valores
+por defecto.
+\item \texttt{-c} No genera el poblado de la base de datos. Esto es útil cuando
+sólo se quiere cambiar la carga del sistema; por ejemplo: añadir más
+transacciones o cambiar el número de terminales, usando el mismo poblado.
+\item \texttt{-a número} Por defecto se genera el poblado para un almacén, si se
+desean más almacenes, no hay más que indicar aquí el número total de almacenes
+para los que generar el poblado.
+\item \texttt{-t número} Por defecto se generan 100 transacciones; si se desean
+más, se indica en este número. El máximo de transacciones que se pueden indicar
+es $2^{64}=18446744073709551615$.
+\item \texttt{-s número} El número de procesos servidor para los que generar
+carga. El número de transacciones total se dividirá entre el número de
+servidores, y la cantidad resultante será la carga total para cada servidor.
+\end{itemize}
+
+Por último, y como parámetro final, se debe especificar un directorio donde
+depositar la carga generada; este último parámetro es obligatorio. Para conocer 
+más sobre ejemplos y el modo de uso de este programa, acudir al apéndice
+\ref{app:manual}.
+
+
+\subsubsection{Ficheros del experimento}
+Una vez tenemos los parámetros y se ha ejecutado el generador, obtendremos en el
+directorio indicado una serie de ficheros, cada uno con un contenido diferente.
+Veamos cual es su nombre y su aplicación:
+\begin{itemize}
+\item Ficheros acabados en: \textit{\_productos.txt, \_almacenes.txt, \_existencias.txt,
+\_zonas.txt, \_clientes.txt, \_histórico.txt, \_pedidos.txt, \_lineaspedido.txt
+y \_nuevospedidos.txt} ; son los ficheros de poblado de la base de datos. Su
+formato es texto ascii con campos separados por tabuladores que tienen el
+formato que se indicó cuando se especificaron los registros. 
+\item Ficheros acabados en: \textit{\_cargaNUM.txt}; son los ficheros de carga de cada
+servidor. Su formato es también en texto ascii con campos separados por
+tabuladores.
+\item Fichero acabado en: \textit{\_constantes.txt}; almacena el número de servidores
+para los que se ha generado carga, y también el número de transacciones totales a 
+ejecutar entre todos los servidores.
+\end{itemize}.
+
+Por defecto, cuando se genera un experimento con el mismo nombre de uno ya
+existente, se sobreescriben los ficheros de poblado y se eliminan los ficheros
+anteriores de carga antes de ser generados de nuevo. Al aplicar la opción
+\texttt{-c}, los ficheros de poblado se mantienen pero los ficheros de carga
+anteriores son eliminados antes de generar los nuevos.
+
+\subsection{Banco de pruebas del subsistema}
+Las pruebas del sistema generador se han centrado sobre todo en comprobar cada
+una de las cadenas de escritura a ficheros y las de lectura, para poder asegurar
+que lo mismo que se lee es lo que se ha escrito. No se han olvidado las pruebas
+de generación aunque dichas pruebas no se pudieron automatizar.
+
+El banco de pruebas para el subsistema de generación, consta de las siguientes
+pruebas que ha superado.
+\begin{itemize}
+\item Para cada tipo de registro (almacén, zona, \ldots ), se utilizó un
+programa que dado un poblado generado, lo lee del disco y lo vuelve a escribir
+en otro fichero. Después de su ejecución, se comprueba que ambos ficheros son
+iguales, y así se puede afirmar que lo mismo que se escribe es lo mismo que se
+lee.
+\item Para cada fichero de poblado generador, con la utilidad \texttt{wc -l}, se
+han contado la cantidad de líneas generadas, para comprobar si la cardinalidad
+pedida es la misma que la cardinalidad generada.
+\item Para los ficheros de carga se utilizó otro programa que mostraba por
+pantalla los datos que iba leyendo, de tal manera que se podía comprobar que lo
+escrito en disco y lo leído era exactamente igual.
+\item Para cada generador, se comprobó que realmente su salida era aleatoria
+entre los rangos que se le indicaban.
+\end{itemize} 
+
+No es un banco de pruebas muy extenso, pero con esto se puede asegurar una
+correcta generación de datos, que más tarde serán utilizados por el 
+programa de medida del rendimiento.
+
+

@@ -1,0 +1,1417 @@
+\chapter{Fundamentos}
+\section{Análisis de rendimiento}
+Las especificaciones del estándar TPC-C no son más que las especificaciones de
+un análisis de rendimiento que incluyen la realización de una herramienta de
+medida de rendimiento, pero también la preparación de una documentación adecuada
+así como una elección de parámetros y factores que analizar. Para entender mejor
+qué es y qué influye en un análisis de rendimiento se va a detallar en qué
+consiste y qué factores influyen de una manera general.
+
+\subsection{Objetivos del análisis de rendimiento}
+
+Los objetivos de cualquier análisis de rendimiento de un sistema informático o
+de uno de sus componentes dependen del la situación concreta y de la capacidad,
+habilidad e intereses de la persona encargada de realizar ese análisis (el
+analista). Aun con estas dependencias se pueden señalar varios objetivos
+\cite{cambridge00} que
+suelen buscar en los análisis de rendimiento los cuales son útiles tanto para
+diseñadores de sistemas informáticos como para el usuario final.
+
+\begin{itemize}
+\item\textbf{Comparar alternativas.} Cuando se necesita adquirir un nuevo
+sistema informático, uno se enfrenta a diferentes sistemas con diferentes
+características entre los que elegir. Cada característica de un solo sistema
+puede afectar al rendimiento y al precio: memoria, número de procesadores,
+interfaz de red, número de discos, sistema operativo, etc. El objetivo de un
+análisis de rendimiento en este caso es proporcionar información cuantitativa
+sobre qué configuración es la más adecuada bajo unas determinadas condiciones.
+
+\item\textbf{Determinar el impacto de una característica concreta.} Cuando se
+diseña un nuevo sistema, o cuando se actualiza uno ya existente, se suele
+necesitar determinar el impacto causado al añadir o eliminar una característica
+concreta; por ejemplo, el diseñador de un nuevo procesador puede querer
+determinar cuando es útil añadir una unidad de punto flotante a la arquitectura,
+o si el tamaño de la caché incluida en el chip es el adecuado. Este es el
+análisis llamado \textit{comparación antes y después}, ya que se cambia un
+componente bien definido del sistema.
+
+\item\textbf{Ajustar el sistema.} El objetivo de un análisis de rendimiento
+cuando se quieren optimizar los ajustes de un sistema, es encontrar el conjunto
+de parámetros con sus valores que producen en su totalidad el mejor rendimiento. En
+los sistemas operativos de tiempo compartido, por ejemplo, es posible controlar
+el número de procesos que pueden compartir el procesador; el impacto sobre el
+rendimiento que perciben los usuarios del sistema puede verse muy afectado por
+este número y también por la cantidad de tiempo asignado a cada proceso. Muchos
+otros parámetros del sistema como los tamaños de los almacenes intermedios de
+red y disco pueden también alterar el rendimiento de un sistema, ya que los
+impactos en el rendimiento de estos parámetros pueden estar interconectados; el
+hecho de encontrar el mejor conjunto de parámetros con sus valores adecuados
+puede ser una tarea difícil.
+
+\item\textbf{Identificar el rendimiento relativo.} El rendimiento de un sistema
+informático sólo suele tener un significado concreto dentro del contexto de su
+rendimiento relativo a alguna otra \textit{cosa}, como otro sistema u otra
+configuración del sistema; por eso el objetivo en esta situación puede ser
+cuantificar el cambio en el rendimiento relativo a las antiguas
+versiones/generaciones del sistema. Otro objetivo puede ser cuantificar
+el rendimiento relativo a las necesidades de un cliente o el de los sistemas de la
+competencia.
+
+\item\textbf{Búsqueda de fallos en el rendimiento.} Buscar fallos en un programa
+para que su funcionamiento sea lo más correcto posible es lo básico en cualquier
+aplicación, sin embargo, el análisis de rendimiento se convierte en un problema
+de búsqueda también, aunque en este caso de rendimiento. Un programa funciona
+correctamente pero lo hace más lentamente de lo deseado, por lo que el analista
+en este punto busca identificar las causas por las que el programa no cumple con
+los requisitos de rendimiento que se esperan de él; una vez los problemas de
+rendimiento se identifican, puede que exista alguna posibilidad de resolverlos. 
+
+\item\textbf{Establecer unas expectativas.} Los usuarios de un sistema
+informático pueden hacerse una idea de la capacidad de, por ejemplo, la nueva
+generación de sistemas informáticos, gracias a que se ha realizado un análisis
+de rendimiento indicando lo que dichos sistemas son capaces de hacer.
+
+\end{itemize}
+
+En todas estas situaciones, el esfuerzo involucrado en el trabajo de un análisis
+de rendimiento debe ser proporcional al coste de escoger la decisión equivocada;
+por ejemplo, si se están comparando diferentes fabricantes de sistemas
+informáticos para conocer cual de ellos es mejor en una decisión de compra de
+muchos equipos, el coste monetario de escoger la empresa equivocada puede ser
+importante, tanto el coste del sistema en si como las áreas de la empresa que se
+vean afectadas por esa mala decisión. Se ve claramente que en este caso el
+análisis tiene que ser muy detallado. Aunque por ejemplo, si se está buscando el
+mejor PC para un uso personal, el coste de escoger la opción equivocada es
+mínimo, y el análisis de rendimiento puede limitarse a leer unos pocos artículos
+de una revista.
+
+\subsection{Técnicas generales}
+Cuando uno se enfrenta a un problema de análisis de rendimiento, hay tres
+técnicas fundamentales que se pueden usar para encontrar la solución adecuada.
+Estas son: \textit{medidas} de los sistemas actuales, \textit{simulación} y
+\textit{modelado analítico}. Las medidas de los sistemas existentes normalmente proporcionan los mejores
+resultados ya que teniendo las herramientas de medida adecuadas, no hace falta
+hacer ninguna simplificación, sólo queda utilizarlas; lo que hace que los
+resultados basados en las medidas de un sistema existente sean más creíbles
+cuando se presentan a otras personas. Aun así las medidas de estos sistemas no
+suelen ser flexibles y sólo proporcionan información del sistema analizado. Un
+objetivo común del análisis de rendimiento es caracterizar cómo el rendimiento
+de un sistema cambia al variar ciertos parámetros; en un sistema existente
+puede ser difícil, si no imposible, cambiar alguno de estos parámetros, por lo que
+evaluar el impacto en el rendimiento de dicho parámetros es también imposible.
+Medir ciertos aspectos del rendimiento en un sistema actual puede suponer una
+tarea costosa en tiempo y difícil, así que aunque las medidas de sistemas
+reales nos ofrezcan datos muy fiables, las dificultades y limitaciones
+existentes hacen que sean necesarias otras técnicas para buscar soluciones.
+
+
+La simulación de un sistema informático es un programa escrito para modelar
+características importantes del sistema que está siendo analizado; ya que el
+simulador no es nada más que un programa, puede modificarse fácilmente para
+estudiar el impacto de cambios en casi cualquiera de los componentes que se
+simulan. El coste de una simulación incluye el tiempo requerido para escribir y
+depurar el programa de simulación así como el tiempo de cada simulación;
+dependiendo de la complejidad del sistema que se esta simulando, y el nivel de
+detalle del modelo, estos costes pueden ser relativamente bajos o moderados
+comparados con el coste de comprar una máquina real en la cual realizar los
+experimentos.
+
+La principal limitación de un análisis de rendimiento basado en simulaciones es
+que es imposible modelar hasta el más mínimo detalle del sistema que se está
+estudiando, por lo que se necesita simplificar algunos conceptos y realizar
+algunas asunciones para que sea posible escribir un modelo que se pueda
+ejecutar en un tiempo razonable. Estas simplificaciones pueden limitar la
+exactitud de los resultados y por lo tanto reducir la confianza que se puede
+tener en el modelo comparado con un sistema real, sin embargo, la simulación
+disfruta de una gran popularidad para el análisis de sistemas informáticos
+(Véase RSIM por ejemplo) dado el alto grado de flexibilidad y su relativa
+facilidad de implementación.
+
+La tercera técnica disponible para el analista es el modelado analítico; el
+modelo analítico es una descripción matemática del sistema, que comparada con
+una simulación o unas medidas de un sistema real, obtiene unos resultados menos
+creíbles y menos precisos. No obstante, un modelo analítico simple puede
+proveernos rápidamente de pequeños detalles dentro del conjunto general del
+sistema o de alguno de sus componentes; estos pequeños detalles internos pueden
+ser usados para ayudar a centrar unas medidas más detalladas o un modelo de
+simulación más concreto. Un modelo analítico puede ayudar a discernir si los
+resultados producidos por un simulador o los valores obtenidos de un sistema
+real son razonables o no.
+
+\subsubsection{Un ejemplo}
+
+El retraso que se observa en una aplicación cuando accede a memoria puede tener
+un gran impacto sobre el tiempo de ejecución total; medidas directas de dicho
+retraso en una máquina existente pueden ser difíciles de obtener, aunque dado
+que los pasos que se ejecutan para acceder a una sistema de memoria complejo no
+están accesibles normalmente desde una aplicación de usuario, un programador
+avanzado puede ser capaz de escribir un simple programa que ejecute porciones
+específicas de código en dicha arquitectura de memoria para poder obtener algunos
+parámetros importantes del sistema. Por ejemplo, el tiempo de ejecución de un
+programa sencillo que referencia una y otra vez la misma variable puede usarse
+para estimar el tiempo que se necesita para acceder al primer nivel de caché; de
+la misma manera, un programa que siempre fuerza fallos en la caché puede servir
+para medir indirectamente el tiempo de acceso a  la memoria principal.
+Desafortunadamente, el impacto de esos parámetros del sistema en el tiempo de
+ejecución de una aplicación completa es muy dependiente de las referencias a
+memoria que realice dicha aplicación, y obtener un patrón de esas referencias
+puede ser difícil.
+
+
+Por otro lado, la simulación es una potente técnica para estudiar el
+comportamiento de los sistemas de memoria, dado su alto grado de flexibilidad,
+cualquier parámetro de la memoria incluida la granularidad de la caché, los
+tiempos de acceso relativos, los tamaños de la caché y la memoria, etc, puede
+ser fácilmente alterado para estudiar su impacto en el rendimiento. Puede ser
+todo un reto modelar completamente el solapamiento de los retrasos de memoria, y
+la ejecución de otras instrucciones en procesadores que tiene sistemas como la
+ejecución fuera de orden, predicción de saltos, acceso a caché no bloqueantes,
+etc. Aun con las simplificaciones y asunciones, los resultados de una
+simulación detallada proporcionan detalles internos útiles del efecto de la
+memoria en el rendimiento de un programa concreto.
+
+Por último, se puede desarrollar un modelo analítico simple: Sea $t_c$ el retardo
+observado al acceder a una dirección de memoria si la memoria a la que accedemos
+se encuentra en la caché, sea $t_m$ el retardo al acceder a la memoria principal,
+sea h el ratio de aciertos de la caché (la cantidad de accesos a memoria que son
+resueltos por la caché sin acceder a la memoria principal), por lo que el ratio
+ de fallos en la memoria será $h - 1$. Podemos concluir que el tiempo medio
+ necesario para un acierto en la caché es $h * t_c$, mientras que el tiempo medio
+ para los fallos es $t_m * (h - 1)$. El modelo simple del tiempo medio de acceso
+ a memoria es:
+\begin{equation}
+t_avg = h*t_c + (1 - h)*t_m
+\label{modelosimple}
+\end{equation}
+
+Para aplicar este modelo simple a un programa específico se necesita conocer el
+ratio de aciertos (h) para ese programa; así como los valores de $t_c$ y $t_m$
+para el sistema, que se pueden encontrar en las especificaciones del fabricante
+o pueden ser obtenidos mediante medidas como se describió anteriormente; por
+último el ratio de aciertos para un programa normalmente es más difícil de
+obtener. En definitiva, un modelo simple puede aportar información sobre los
+efectos de incrementar ciertos parámetros en el sistema.
+
+\subsubsection{Resumen}
+
+Vamos a ver un resumen de estas 3 técnicas así como de los parámetros que las
+diferencian (\tablename\ \ref{tab:resumentecnicas}).
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabularx}{\linewidth}{XXXX}
+\hline
+\textbf{Característica} & \textbf{Modelo analítico} & 
+\textbf{Simulación}     & \textbf{Medidas reales} \\
+\hline
+Flexibilidad & Alta & Alta  & Baja \\
+Coste        & Bajo & Medio & Alto\\
+Credibilidad & Baja & Media & Alta\\
+Exactitud    & Baja & Media & Alta\\
+\hline
+\end{tabularx}
+\end{center}
+\caption{Tabla resumen de las técnicas de análisis}\label{tab:resumentecnicas}
+\end{table}
+
+La \textit{flexibilidad} de una técnica indica cómo de fácil es cambiar la
+configuración del sistema que se está estudiando; el \textit{coste} corresponde
+al tiempo y dinero necesario para realizar el experimento adecuado dependiendo
+de la técnica; la \textit{credibilidad} de una técnica es alta si los resultados
+producidos usando esa técnica son lo más reales que se pueda. Es más fácil para
+alguien creer que el tiempo de ejecución de una aplicación estará dentro de un
+rango que uno puede demostrar en una máquina actual que el rango obtenido de una
+simulación; por la misma regla, son más reales los resultados obtenidos de una
+simulación que de un modelo analítico. Por último, la \textit{exactitud} de una
+técnica indica cómo de cercanos son los resultados a los de un sistema real.
+
+La elección de una solución específica depende del problema que se quiera
+resolver; por lo que una de las  habilidades que debe desarrollar un analista
+del rendimiento de sistemas informáticos, es la de determinar la técnica más
+apropiada dada una situación concreta.
+
+\subsection{Errores comunes en los análisis de rendimiento}
+Para favorecer el uso de la metodología adecuada para evaluar el rendimiento,
+en esta sección se van a exponer una serie de errores que en los que se incurre de manera
+habitual en muchos proyectos de evaluación de rendimiento. La mayoría de errores
+listados no se cometen de manera intencionada, sino que ocurren por errores de
+concepción, suposiciones o falta de conocimiento de las técnicas de medida de
+rendimiento.
+
+\begin{enumerate}
+\item \textbf{No tener objetivos.} Tener alguna meta es la parte más importante
+de cualquier esfuerzo, y sin ella dicho esfuerzo esta avocado al fracaso; en
+este aspecto los proyectos de medida de rendimiento no son ninguna excepción.
+La necesidad de una meta puede sonar
+obvio pero muchos proyectos comienzan sin ningún objetivo definido; por ejemplo,
+una persona dedicada a analizar el rendimiento que es contratada e insertada en
+el equipo de diseño, puede empezar a modelar un diseño, pero cuando
+se le pregunta por los objetivos el analista suele contestar que el modelo es el
+que ayudará a resolver las preguntas que puedan surgir. Es muy común oír que los
+modelos son lo suficientemente flexibles para ser adaptados a diferentes
+problemas, pero la realidad es que se hacen necesarios modelos concreto con
+objetivos concretos; las medidas utilizadas y la carga de trabajo empleada
+dependen al final del objetivo. Qué parte del sistema necesite ser estudiada
+varía dependiendo del problema, por ello antes de escribir la primera línea de
+código o formula de un modelo, o antes de establecer un experimento que haga una
+medición, es importante que el analista entienda el sistema e identifique el
+problema que necesita ser resuelto, lo que ayudará a elegir correctamente: la
+métrica, la carga de trabajo y la metodología en general.Establecer unos
+objetivos no es un trabajo sencillo, ya que los problemas que se presentan en
+las medidas de rendimiento suelen ser vagos y abstractos.
+
+\item\textbf{Objetivos parciales.} Otro error común es declarar de manera implícita o
+explicita cierto \textit{partidismo} a la hora de indicar los objetivos
+iniciales. Por ejemplo, si nuestro objetivo es ``Mostrar que nuestro sistema es
+mejor que los demás'', el problema se convierte en la búsqueda de medidas y
+cargas de tal manera que nuestro sistema salga siempre vencedor, en vez de
+buscar las medidas y cargas de trabajo que comparan realmente los dos sistemas.
+Por ello una regla muy importante es ser imparcial y no tener ideas
+preconcebidas para obtener unas conclusiones independientes y no guiadas por
+ciertas creencias iniciales.
+
+\item\textbf{Mala aproximación al problema.} Normalmente un analista adopta una
+aproximación mala cuando no tiene ningún sistema o metodología para entender el
+problema; escoger parámetros, factores, medidas y cargas de trabajo de manea
+aleatoria, lo que lleva a conclusiones imprecisas. Hace falta un método para
+comprender el problema paso por paso, para identificar los objetivos,
+parámetros, factores, medidas y cargas de trabajo de manera adecuada.
+
+\item\textbf{No entender el problema.} Un analista con poca experiencia siente que no
+se ha hecho nada hasta que se ha construido un modelo y se tienen algunos
+resultados numéricos; pero con el tiempo uno se da cuenta de que gran parte del
+esfuerzo del análisis se invierte en definir correctamente el problema, pudiendo
+consumir hasta un 40\% del tiempo \cite{theart91}. Como dice el refrán \textit{un
+problema bien explicado ya tiene la mitad resuelto}, del resto, una gran parte
+del tiempo se invierte en alternativas de diseño, interpretación de resultados y
+presentación de conclusiones; el desarrollo del modelo en si es una pequeña
+parte del proceso. Así como un coche o un tren es un medio para llegar a un
+lugar concreto, y no un fin en si mismos, los modelos son los medios para
+alcanzar las conclusiones, no son el resultado final. Un analista experto en el
+modelado de medidas de rendimiento pero que no se esfuerza en entender el
+problema concreto, encuentra que sus modelos son ignorados por aquellas personas
+que necesitan unos datos para tomar decisiones, ya que ellos necesitan una ayuda
+en sus decisiones, no un modelo.
+
+\item\textbf{Métrica de rendimiento mal elegida.} Una métrica se refiere al criterio
+usado para cuantificar el rendimiento del sistema, por ejemplo las métricas más
+utilizadas son la capacidad de procesar datos (throughput) y el tiempo de
+respuesta. La elección de las métricas adecuadas depende de los servicios que
+sistema vaya a proveer; por ejemplo el rendimiento de una CPU se compara
+basándose en su capacidad de procesar datos, lo que se suele medir en términos
+de millones de instrucciones por segundo (MIPS); aun así, comparar los MIPS de
+dos CPU de diferente arquitectura como RISC (Reduced Instruction Set Computers)
+y CISC (Complex Instruction Set Computers), no tiene mucho sentido ya que las
+instrucciones de cada CPU son totalmente distintas. El error usual es utilizar
+métricas fácilmente calculables en vez de métricas relevantes que son más
+difíciles de calcular.
+
+\item\textbf{Carga de trabajo no representativa}. La carga de trabajo usada para
+comparar dos sistemas debe ser representativa del uso actual y real del
+sistema; por ejemplo, si los paquetes en una red son una mezcla de dos tamaños:
+cortos y largos, la carga de trabajo para comparar dos redes debe consistir
+tanto en paquetes cortos como largos.
+La elección de la carga de trabajo tiene un impacto significativo en los
+resultados del estudio de rendimiento, ya que la carga equivocada puede dar
+conclusiones erróneas.
+
+\item\textbf{Técnica de evaluación equivocada}. Hay tres técnicas de evaluación:
+medir, simular y modelar analíticamente. Los analistas normalmente tienen
+preferencia por una de estas tres técnicas, y la utilizan constantemente;
+aplicando otro refrán \textit{Cuando aprendes a manejar un martillo todos los
+problemas son clavos}, pero el basarse en una sola técnica produce un modelo
+que aunque sea el que mejor se sabe resolver no tiene que ser el que mejor
+resuelva el problema, introduciendo fenómenos que no están en el sistema real y
+dejando fuera parámetros que pueden ser importantes.
+
+  
+\item\textbf{Pasar por alto parámetros importantes.}  
+Es una buena idea hacer una lista lo más completa posible de componentes del
+sistema y de la carga de trabajo que afecta a su rendimiento, estas
+características son los denominados parámetros; por ejemplo, para un sistema
+operativo los parámetros pueden ser: la cantidad de tiempo que un proceso esta
+en la CPU, o el tamaño de memoria ocupado por el trabajo actual. Estos
+parámetros de carga pueden incluir el número de usuarios, patrones de llegada de
+peticiones, prioridad, etc; es trabajo del analista escoger un grupo de valores
+para cada uno de esos parámetros; ya que los resultados finales del estudio
+dependen de esa elección, el hecho de pasar por alto un solo parámetro
+importante puede hacer que los resultados no tengan ninguna validez.
+
+\item\textbf{Pasar por alto factores importantes.} Cuando un parámetro varía en
+el estudio, se le llama factor; por ejemplo, de los parámetros del punto
+anterior, el número de usuarios puede ser un factor y el resto de parámetros
+permanecer fijos. No todos los parámetros tienen el mismo efecto en el
+rendimiento, por lo que es importante identificar aquellos parámetros que si
+varían afectan de manera importante al rendimiento del sistema, y usar esos
+parámetros como factores. Un ejemplo, si la tasa de llegada de paquetes en
+una red afecta más al tiempo de respuesta que el tamaño de los paquetes, será
+mejor utilizar varias tasas de llegada de paquetes en el estudio que varios
+tamaños de paquetes.
+
+A la hora de elegir un factor entre los parámetros, aquellos factores que están
+bajo el control del usuario o la persona que toma las decisiones y que pueden
+ser fácilmente cambiados, son los mejores factores posibles ya que no merece la
+pena malgastar tiempo comparando alternativas que el usuario final no puede
+adoptar debido a que no puede cambiarlas de ninguna manera. También es importante
+entender las características aleatorias de algunos componentes del sistema que
+pueden afectar en el rendimiento, y muy probable que algunos de esos parámetros
+sean desconocidos para el analista (por ejemplo el funcionamiento del
+programador de acceso a disco del sistema), por lo que aunque puedan tener
+importancia, el analista los desechará por no conocerlos. La elección de
+factores debe basarse en su importancia no en el conocimiento que se tenga sobre
+ellos.
+
+\item\textbf{Diseño del experimento mal realizado.} Este diseño está
+relacionado con el número de medidas o de simulaciones que se van a realizar y
+los valores de los parámetros en cada experimento. La elección correcta de estos
+valores ayuda a sacar más información de cada experimento, de esta manera no se
+desperdicia el tiempo ni los recursos utilizados. Por ejemplo:
+diseñando los experimentos de manera ingenua, en cada experimento se altera cada
+factor de uno en uno, lo que puede llevar a equivocaciones si dos parámetros son
+dependientes y no se cambian a la vez.
+\item\textbf{Nivel de detalle inadecuado.} El nivel de detalle usado a la hora
+de modelar un sistema tiene un gran impacto en la formulación del problema,
+debido al exceso de datos o a la falta de datos. Para comparar alternativas que
+simplemente son pequeñas variaciones de un mismo modelo es mejor indicar esas
+variaciones que hacer un modelo de más alto nivel. Por otro lado, cuando se
+comparan alternativas muy diferentes, es bueno usar un modelo de alto nivel que
+permita comparar alternativas muy diferentes de manera rápida. El error que se
+suele cometer es detallar demasiado cuando se necesita un modelo de alto nivel,
+y abstraerse cuando se necesita un modelo de bajo nivel.
+
+\item\textbf{Ignorar el análisis de los resultados.} Uno de los mayores
+problemas con las medidas en los proyectos de medida de rendimiento, es que los
+analistas que los realizan son buenos con las técnicas de medición pero no
+tienen base, conocimientos y/o experiencia analizando los datos. Recogen gran
+cantidad de datos pero no saben qué  analizar o cómo interpretarlos, de tal
+manera que no se obtiene un resumen de los datos y solo se entregan los datos en
+bruto. Por lo que se hace necesario tener un equipo que conozca cómo analizar
+esos datos.
+
+\item\textbf{Análisis equivocado.} Hay un buen número de errores comunes a la
+hora de realizar medidas, simulaciones y modelos analíticos, como por ejemplo
+simulaciones cortas, medias demasiado alteradas, etc.
+
+\item\textbf{Análisis insensible.} Es habitual que los analistas pongan
+demasiado énfasis en los resultados de sus análisis, presentándolos como hechos
+más que como evidencias. El hecho es que los resultados pueden ser sensibles a
+la carga de trabajo y a parámetros del sistema, y esto se suele obviar; por lo
+que sin un análisis sensible a estos parámetros uno no puede estar seguro si las
+conclusiones cambiarían si el análisis se realiza con una configuración
+ligeramente diferente, además sin un análisis sensible a los parámetros, es
+difícil acceder a la importancia relativa de los diferentes parámetros.
+ 
+\item\textbf{Ignorar los errores en la entrada.} Los parámetros de interés
+algunas veces no pueden ser medidos directamente, por lo que se toman medidas de
+otra variable y se usa para estimar el parámetro deseado; por ejemplo, en una red
+de ordenadores donde los paquetes son almacenados en una lista enlazada de almacenes
+temporales (buffers), y cada almacén tiene un tamaño determinado, dado el número
+de almacenes requerido para almacenar los paquetes es imposible predecir el
+número de paquetes o lo que ocupa exactamente cada paquete. Estas situaciones
+introducen cierto desconocimiento de los datos de entrada, y el analista
+necesita ajustar el nivel de confianza de los datos de salida de ese modelo ya
+que los datos de entrada no son muy fiables. 
+
+\item\textbf{Valores extremos.} También hay que tener cuidado con valores extremos, 
+los llamados outliers, a la
+hora de realizar la estadística correspondiente, ya que pueden afectar mucho a
+los resultados; pero para poder descubrir esos valores extremos, y sobre todo
+cuales se pueden ignorar y cuales no, hace falta un
+conocimiento profundo y cuidadoso del sistema que esta siendo analizado.
+
+\item\textbf{Asumir un futuro sin cambios.} Normalmente se asume que el futuro
+será el mismo que el pasado, por lo que se usa un modelo basado en la carga y
+rendimiento observado en el pasado para predecir el rendimiento en el futuro. Se
+asume que en el futuro la carga y el rendimiento del sistema será el mismo, pero
+dependiendo de la cantidad de tiempo y de que se quiera asumir, esto puede no
+ser verdad.
+
+\item\textbf{Ignorar la variabilidad.} Analizar sólo la media de rendimiento y
+no analizar la variabilidad es lo más sencillo, pero no es imposible analizarla.
+Si la variación es alta, la media por si sola no ayuda en nada a la hora de
+tomar decisiones; por ejemplo, el uso diario de ancho de banda puede no
+significar nada, pero el uso por horas puede aportar información útil.
+
+\item\textbf{Análisis demasiado complejo} Si dos análisis dan la misma
+conclusión, es preferible utilizar aquel análisis que es más simple y fácil de
+explicar. Metas demasiado ambiciosas y modelos demasiado complejos dan lugar a
+análisis difícilmente entendibles; es mejor empezar con modelos o experimentos
+simples, e ir introduciendo complicaciones poco a poco hasta llegar a un nivel
+de detalle aceptable.
+
+Hay que tener cuidado a veces con los modelos que se realizan en el ámbito
+académico; muchas veces en estos círculos se tiende a intentar modelar y
+resolver problemas complejos, más que a intentar dar soluciones a modelos
+simples. En el mundo industrial, donde la gente que toma decisiones no tiene
+ningún interés por las técnicas utilizadas y donde existe hay poco tiempo para
+realizar los análisis, se necesitan modelos simples y gente capaz de sacar
+conclusiones aceptables de esos modelos simples.
+
+\item\textbf{Presentación inadecuada de los resultados.} Una lista que no
+produce resultados útiles es un fallo, y esto normalmente se debe a que el
+análisis expone unos resultados que no son entendibles por aquellos que los van
+a utilizar. Desde diseñadores de un sistema, compradores o patrocinadores de un
+proyecto; vender los resultados a los que tomas las decisiones es labor del
+analista, por lo que se necesita un especial cuidado a la hora de usar palabras,
+imágenes y gráficos para explicar los resultados. La medida correcta para el
+rendimiento de un sistema no es el número de análisis realizado sino aquellos
+análisis que han servido de algo a las personas que los han utilizado.
+
+\item\textbf{Ignorar aspectos sociales.} Para presentar correctamente los
+resultados hacen falta dos habilidades: por una lado saber hablar y escribir y
+por otro saber modelar y analizar. Debido a que es importante que los resultados
+sean aceptados y entendidos se requiere cierta ingeniería social para que los
+destinatarios puedan creer, entender y aceptar los resultados. También existe la
+necesidad de comunicación entre miembros del equipo, exponer e intercambiar
+resultados, de ahí que una de las habilidades necesarias del analista sea la de
+tener facilidad de intercambiar resultados con otras personas. 
+
+\item\textbf{Omitir asunciones y limites.} Todo análisis tiene aspectos asumidos
+y limitaciones que normalmente no se incluyen en el informe final, lo que puede
+llevar al usuario a aplicar el análisis en otro contexto donde esas asunciones
+no son válidas; a veces los analistas listan las asunciones al principio del
+informe, pero olvidan las limitaciones al final y hacen conclusiones sobre
+entornos en los que el análisis no es aplicable.
+\end{enumerate}
+
+Esta pequeña discusión sobre errores comunes hace posible presentar una lista de
+preguntas que se pueden realizar de manera general sobre cualquier análisis de
+rendimiento; todas estas cuestiones tienen que responderse afirmativamente.  
+
+\begin{enumerate}
+\item ¿Está el sistema definido correctamente?
+\item ¿Están los objetivos definidos de manera imparcial?
+\item ¿Se han seguido sistemáticamente todos los pasos del análisis?
+\item ¿Se entiende el problema correctamente antes de analizarlo?
+\item ¿Son relevantes las medidas de rendimiento en el problema actual?
+\item ¿Es la carga de problema la adecuada para este problema?
+\item ¿Se ha escogido correctamente la técnica de evaluación?
+\item ¿Está completa la lista de parámetros que afectan al sistema?
+\item ¿Están todos los parámetros que afectan al rendimiento marcados como
+factores que serán variados?
+\item ¿El experimento diseñado es eficiente en términos de tiempo y resultados?
+\item ¿Es el nivel de detalle adecuado?
+\item ¿Los resultados obtenidos están presentados con un análisis y con una
+interpretación?
+\item ¿La estadística del análisis es correcta?
+\item ¿Es el análisis sensible a los parámetros y carga del sistema?
+\item ¿Los errores en la entrada producen solamente pequeños cambios en los
+resultados?
+\item ¿Se han identificado y tratado correctamente los valores extremos?
+\item ¿Se han modelado los posibles cambios que pueden ocurrir en un futuro en
+el sistema y en el modelo?
+\item ¿Se ha tenido en cuenta que cantidad de variación de la entrada existe?
+\item ¿Se ha tenido en cuenta que cantidad de variación hay en los datos
+analizados?
+\item ¿Es el análisis fácil de explicar?
+\item ¿Está la presentación adaptada a la audiencia?
+\item ¿Se han presentado los resultados de manera gráfica tanto como se ha
+podido?
+\end{enumerate}
+
+\section{Métricas del rendimiento}
+\subsection{¿Qué es una métrica de rendimiento?}
+
+Antes de entender cualquier aspecto del rendimiento de un sistema informático,
+hay que concretar exactamente que cosas es útil e interesante medir. Normalmente
+las características básicas que se miden en un sistema informático son:
+\begin{enumerate}
+\item La cantidad de veces que ocurre un evento.
+\item La duración de un intervalo de tiempo.
+\item El valor de un parámetro concreto.
+\end{enumerate}
+
+Por ejemplo, puede que necesitemos contabilizar cuántas veces un procesador
+inicia una petición de entrada/salida, cuánto tiempo dura cada una de esas
+peticiones, o cuántos bits se transmiten o almacenan en cada petición.
+
+Para esos valores que deseamos medir, podemos obtener el valor actual
+del parámetro adecuado para describir el rendimiento del sistema. Dicho valor se
+llama \textit{métrica de rendimiento} o unidad de medida del rendimiento.
+
+Si estamos interesados concretamente en el tiempo, cantidad o tamaño del valor
+medido, podemos usar el valor directamente como nuestra unidad de medida del
+rendimiento del sistema, aunque lo normal es normalizar y relacionar dichos
+datos, como por ejemplo: operaciones por segundo. Este tipo de unidad se llama
+\textit{unidad de ratio} o \textit{capacidad de proceso}, y se calcula
+dividiendo la cantidad de eventos que ocurren en un intervalo de tiempo entre
+dicho intervalo de tiempo. Ya que estas medidas están normalizadas a una unidad
+de tiempo común, como pueden ser los segundos, son útiles para comparar
+diferentes mediciones realizadas a lo largo de diferentes intervalos de tiempo.
+
+
+El escoger una métrica de rendimiento adecuada depende de los objetivos y del
+contexto actual, así como del coste que se requiere para obtener la información
+necesaria para dicha métrica. Por ejemplo, suponiendo que se necesita escoger
+entre dos sistemas informáticos para usar durante un corto periodo de tiempo y
+una tarea especifica (como usar un procesador de texto); dado que la
+penalización por hacer una mala elección no es mucha, el escoger la frecuencia
+de reloj como métrica de rendimiento puede ser una buena opción; pero desde que
+la frecuencia de reloj no es una métrica aceptable de rendimiento, hay que
+escoger una unidad mejor, sobre todo si se necesita comparar una gran cantidad de
+esos sistemas informáticos. Hay que tomarse un tiempo para escoger una unidad de
+medida que sea rigurosa y real, lo que nos lleva a preguntarnos ¿Cual es una
+buena unidad de medida?
+
+\subsection{Características de una buena métrica de rendimiento}
+Se pueden utilizar muchas y muy diferentes unidades de medida de rendimiento
+para describir un sistema informático; algunas han sido y son muy utilizadas,
+como los MIPS (Millones de instrucciones por segundo) y los MFLOPS (Millones de
+operaciones en punto flotante por segundo). Pero el tiempo demuestra que no
+todas estas medidas son buenas, en el sentido que pueden llevar a confusión y/o
+errores; por ello es necesario entender las características de una
+\textit{buena} métrica de rendimiento, lo que nos ayudará a decidir qué unidades
+de las que están disponibles se utilizaran en cada situación particular, o si es
+necesario desarrollar una nueva unidad de medida.
+
+Una unidad de medida que satisfaga todos los requisitos \cite{cambridge00} 
+que se exponen a continuación, es una unidad de medida útil para un analista, y
+le permite realizar comparaciones precisas y detalladas entre diferentes
+mediciones. Este criterio fue desarrollado observando los resultados de muchos
+análisis de rendimiento a lo largo de muchos años; no es que sean unos
+requerimientos absolutos sino que al no cumplirse pueden inducir a conclusiones
+erróneas.
+\begin{enumerate}
+\item\textbf{Linealidad.} Desde que los humanos tendemos a pensar en términos
+lineales, el valor de la unidad de medida debe ser proporcional al rendimiento
+de la máquina; esto quiere decir que si el valor cambia una cierta proporción,
+el rendimiento del sistema debe variar en dicha proporción. Esto es lo más obvio
+de las medidas, por ejemplo, si un sistema es el doble de rápido (usando una
+unidad de medida de velocidad) que otro, uno
+espera que sus tareas se ejecuten en la mitad de tiempo, y si fuera el triple de
+rápido, se esperaría completar las tareas en un tercio del tiempo original.
+
+
+No todas las métricas son lineales, las métricas logarítmicas como los dB usados
+para describir la intensidad, por ejemplo del sonido; esta unidad no es lineal,
+y el incremento de una unidad significa el incremento en 10 de la magnitud
+observada. Estas medidas no son malas, pero las medidas lineales son más
+intuitivas a la hora de presentar resultados en los análisis de rendimiento.
+
+\item\textbf{Confianza.} Una unidad de medida de rendimiento se considera de
+confianza si un sistema A siempre adelanta a otro sistema B cuando los valores
+correspondientes en dicha unidad para los dos sistemas indican que A debe
+adelantar a B. Pongamos un ejemplo, tenemos una unidad nueva llamada PICS que
+mide el rendimiento de programas de procesamiento de texto; medimos un sistema A
+y encontramos que los PICS para ese sistema son 128, y el PICS para el sistema B
+es 97; la unidad de medida PICS es de confianza si siempre el sistema A es mejor
+que el sistema B a la hora de ejecutar programas de procesamiento de texto.
+
+Mientras que esta característica parezca obvia y no necesaria, muchas veces se
+usan unidades de medida que no satisfacen este requerimiento; por ejemplo los
+MIPS o la velocidad de reloj, son unidades de medida que no dan confianza. No es
+raro encontrar procesadores que aun teniendo una frecuencia de reloj más baja,
+son mucho más potentes que otros que tienen frecuencias de reloj más altas.
+
+\item\textbf{Repetibilidad.} Una unidad de medida es repetible si el mismo valor
+usando esa unidad es medible cada vez que se ejecuta el mismo experimento, lo
+que también implica que dicha unidad sea determinista.
+
+\item\textbf{Facilidad de medida.} Si una unidad no es fácil de medir, es
+difícil que alguien la use; y cuanto más difícil sea de medir directa o
+indirectamente, más posibilidades hay de que dicha medida sea tomada de manera
+incorrecta; y es peor un valor mal medido (que se contabiliza en los resultados)
+que una mala unidad de medida (que no se escoge para contabilizar el
+rendimiento).
+
+\item\textbf{Consistencia.} Una unidad de medida consistente es aquella en la que
+sus unidades y su definición permanecen constantes a lo largo de muchos
+sistemas diferentes y configuraciones diferentes del mismo sistema. Si las
+unidades no son consistentes, es imposible utilizarlas para comparar el
+rendimiento de sistemas distintos o de distintas configuraciones. Unidades como
+los MIPS o MFLOPS, no satisfacen ese requerimiento.
+
+\item\textbf{Independencia.} Mucha gente compra sistemas informáticos basándose
+en la comparación de valores de métricas de rendimiento muy comunes, por lo que
+no es normal encontrar cierta presión en los fabricantes para desarrollar y
+optimizar sus sistemas y que dicho valor de esa métrica mejore sustancialmente.
+Para prevenir esta influencia negativa una buena métrica tiene que ser
+resistente a estos trucos.
+\end{enumerate}
+
+\subsection{Procesadores y sus unidades de rendimiento}
+Una gran variedad de métricas de rendimiento han sido propuestas y usadas en el
+mundo de la informática; desgraciadamente muchas de esas unidades de medida no
+son buenas (como se definió en la sección anterior), o se usan y/o interpretan
+de manera incorrecta. Se va a listar una serie de métricas muy comunes y se va a
+analizar su \textit{bondad} respecto a las características anteriores.
+
+\subsubsection{La frecuencia de reloj}
+En muchos anuncios de sistemas informáticos, uno de las partes que más se
+enfatiza es la frecuencia de reloj del procesador central, lo que implica que se
+intenta convencer al comprador que un sistema a 250MHz será siempre más rápido
+que otro a 200MHz. Esta unidad de medida ignora completamente como se realizan
+los cálculos en cada ciclo de reloj, ignora las complejas interacciones del
+procesador con el sistema de memoria y la entrada/salida, y sobre todo, ignora
+que puede que el procesador sea realmente el cuello de botella del rendimiento
+del resto del sistema.
+
+Analizando las características de la frecuencia de reloj en busca de una buena
+unidad de rendimiento, encontramos que es una unidad repetible ya que es
+constante para un sistema dado, es fácil de obtener porque aparece en las
+especificaciones, es consistente ya que el valor de los MHz se define de la
+misma manera en todos los procesadores, y es independiente ya que ninguna
+aplicación puede alterar eso. Pero existen varios problemas y es que no es una
+unidad lineal y no es una unidad de confianza; ya que como mucha gente puede
+demostrar, el tener un procesador con un reloj más rápido no significa que el
+ordenador vaya más rápido que otro con velocidad de reloj inferior. En
+definitiva, esta unidad no es una buena unidad para medir el rendimiento.
+
+\subsubsection{MIPS}
+La cantidad de datos procesados o la proporción de datos ejecutados es una
+medida basada en dicha cantidad de datos entre una unidad de tiempo; dado que
+dicho tiempo suele estar siempre en segundos, estas medidas son útiles para
+comparar velocidades relativas: un coche a $50 m/seg$ va más rápido que uno a
+$35 m/seg$.
+
+La unidad de medida MIPS es un intento de desarrollar una medida proporcional
+para los sistemas informáticos que permita una comparación directa de su
+velocidad. Mientras que en el mundo físico la velocidad es medida mediante la
+distancia recorrida por unidad de tiempo, los MIPS definen la distancia como la
+ejecución de una instrucción, siendo los MIPS: millones de instrucciones por
+segundo, y se definen como:
+\begin{equation}
+MIPS = \frac{n}{t_e * 10^6}
+\end{equation}
+
+De esta manera, los MIPS son fáciles de calcular (punto 4), repetibles (punto 3)
+e independientes (punto 6); desgraciadamente no satisfacen ninguno de los otros
+puntos que identifican a una buena medida de rendimiento. No es lineal, ya que
+doblando los MIPS no se dobla el rendimiento, y no es de confianza ni
+consistente debido a que no se relaciona mucho con el rendimiento.
+
+El problema estriba en que la unidad MIPS en cada procesador significa una
+cantidad diferente de proceso realizado, ya que no todos los procesadores
+realizan el mismo trabajo con una instrucción. Por ejemplo, un procesador puede
+tener una instrucción de salto que compruebe un bit de condición, y otro en esa
+misma instrucción además decremente un contador; en este ejemplo se ve
+claramente como el segundo procesador realiza más trabajo en una misma
+instrucción. Las diferencias entre la cantidad de proceso de cada instrucción
+son las diferencias entre los procesadores RISC y CISC, que hacen de MIPS algo
+inservible como medida de rendimiento; MIPS no es mejor unidad de medida que la
+frecuencia de reloj.
+
+\subsubsection{MFLOPS}
+Los MFLOPS (Millones de operaciones en punto flotante por segundo) intentan
+corregir el principal problema de los MIPS, definiendo de
+manera más precisa  la unidad de ``distancia'' de un ordenador cuando ejecuta
+un programa. Se define una operación aritmética entre dos números en punto flotante
+como unidad básica y se calcula:
+
+\begin{equation}
+MFLOPS=\frac{f}{t_e * 10^6}
+\end{equation}
+
+Donde $f$ es el número de operaciones en punto flotante ejecutadas en $t_e$
+segundos.
+
+Si bien los MFLOPS son una mejora de los MIPS ya que los resultados son más
+claros y fácilmente comparables entre varios sistemas; aun existe un problema
+con los MFLOPS, y es que pueden dar un valor a un sistema que ejecuta programas
+que no realizan operaciones en punto flotante. Este programa puede ser la carga
+real del sistema y no tener relación alguna con esta unidad de medida.
+
+Un problema más sutil que existe en los MFLOPS, es a la hora de ponerse de
+acuerdo en cómo medir exactamente el número de operaciones en punto flotante en
+un programa; ordenadores como los Cray, realizan una división en punto flotante
+usando aproximaciones sucesivas que implican varias multiplicaciones y cálculos;
+de manera similar un procesador puede calcular el valor de un seno o un coseno
+en una instrucción y otro necesitar varias instrucciones. ¿cómo contabilizar
+estas operacionesi?, ¿como una o como múltiples?. Esta cierta flexibilidad a la
+hora de establecer el número total de operaciones en punto flotante, hace que los
+MFLOPS no cumplan la característica de independencia de una buena unidad de
+medida; tampoco resulta de confianza y es inconsistente.
+
+\subsubsection{SPEC}
+Para realizar un estándar de la definición del trabajo realizado por un sistema
+informático durante un uso típico, un grupo de fabricantes se puso de acuerdo
+para crear el SPEC (Cooperativa de evaluación del rendimiento de sistemas); este
+grupo identificó una serie de programas que realizan medidas de operaciones
+enteras y en punto flotante y que reflejan la mayoría de las veces el uso
+habitual de una estación de trabajo. Además, y quizás lo más importante, también
+estandarizaron la metodología para medir y realizar informes de los rendimientos
+obtenidos ejecutando estos programas
+
+La metodología consiste en estos puntos clave:
+\begin{itemize}
+\item Medir el tiempo necesario para ejecutar cada programa sobre el sistema que
+está siendo analizado.
+\item Dividir el tiempo medido para cada programa en el primer paso por el
+tiempo necesario para ejecutar cada programa en una máquina base, y así
+normalizar los tiempos de ejecución.
+\item La media geométrica de todos estos valores produce un solo número que es
+usado como medida de rendimiento.
+\end{itemize}
+
+Mientras que la metodología SPEC es más rigurosa que usar MIPS o MFLOPS, aun
+produce una unidad de medida ligeramente problemática, ya que la media de los
+valores normalizados de los tiempos de ejecución, no está linealmente
+relacionada con el tiempo de ejecución de un programa normal. Esto hace que el
+SPEC sea poco intuitivo, y si nos centramos en un programa concreto, puede
+ocurrir que se ejecute más rápido en una máquina que en otra, teniendo la
+primera menos SPEC que la segunda, lo que hace que esta medida no sea de
+confianza.
+
+Por último, y aunque la métrica parezca independiente de influencias externas,
+es habitual encontrar que los desarrolladores de compiladores optimizan la
+salida de los mismos para este tipo de aplicaciones, por lo que los tiempos
+reales se ven a veces muy alterados para un mismo procesador simplemente
+variando el compilador. Por otro lado, los programas que se incluyen en este
+benchmark los decide un comité de representantes de fabricantes, que está
+sometido a mucha presión externa por parte de sus compañías, lo que implica un
+interés por introducir o modificar aplicaciones para que se ejecuten mejor en
+ciertos sistemas. Aunque SPEC es un paso adelante, aun falla en llegar al
+objetivo de una buena métrica de rendimiento.
+
+\subsubsection{QUIPS}
+La unidad de medida QUIPS se ha desarrollado conjuntamente con el programa de
+benchmark HINT, y es una unidad de medida muy diferente: en vez de definir el
+esfuerzo utilizado para alcanzar un resultado como medida de rendimiento, la
+métrica QUIPS define la calidad de una solución como un indicador más
+significativo; definiéndose la calidad rigurosamente en base a características
+matemáticas del problema que quiere ser resuelto. Si se divide esta medida entre
+el tiempo necesario para alcanzar dicho nivel de calidad, se producen los QUIPS
+(Mejoras de calidad por segundo).
+
+Esta nueva unidad de medida tiene muchas de las características necesarias para
+ser una buena unidad; la precisión matemática de calidad definida para el
+problema hace que esta unidad sea insensible a influencias externas y la hace
+consistente cuando se necesita trasladar a otros sistemas. También es fácilmente
+repetible y es lineal, ya que la medida de la calidad está linealmente
+relacionada con el tiempo necesario para obtener la solución.
+
+Estos aspectos son muy positivos, pero como siempre, existen unas posibles
+dificultades cuando se usa esta métrica como unidad de propósito general. El
+principal problema es que no siempre es una unidad fiable debido a que abarca
+pocas cosas: sistema de memoria y unidades de punto flotante; aunque es una
+buena medida para predecir como se comportará un sistema informático a la hora
+de realizar tareas matemáticas, no nos dice nada de otro tipo de aplicaciones
+como las relacionadas con la entrada/salida, caché de instrucciones, o incluso
+funcionalidades del sistema operativo como la multiprogramación. Los
+desarrolladores han hecho un buen trabajo con HINT ya que es una unidad fácil de
+medir y transportable a otros sistemas, pero es difícil cambiar la definición de
+calidad, lo que hace difícil desarrollar nuevos problemas para centrarse en
+otros aspectos del rendimiento de un sistema, ya que la definición de calidad
+está muy relacionada con el problema que se desea resolver; y resolver un nuevo
+problema es difícil debido a que debe de cumplir todas estas características.
+
+Aun con estos pequeños problemas, QUIPS es un nuevo e importante tipo de medida
+que define rigurosamente aspectos interesantes del rendimiento a la vez que
+proporciona suficiente flexibilidad para permitir que nuevas arquitecturas
+demuestren su capacidad (gracias a su portabilidad). No es que sea una unidad de
+medida de uso general al 100\% pero funciona en cuanto a capacidad de
+procesamiento numérico se refiere. Además ha contribuido de manera importante en
+el desarrollo de medidas de rendimiento más rigurosas.
+
+\subsubsection{Tiempo de ejecución}
+
+Dado que en última instancia estamos interesados en conocer lo rápido que un
+programa se ejecuta, la medida fundamental y básica en las medidas de
+rendimiento es el tiempo necesario que requiere una aplicación para ejecutarse.
+Es simple, el sistema que tarda menos es el que tiene más rendimiento, y podemos
+comparar tiempos directamente o derivar de esos tiempos las proporciones
+necesarias; aun así, sin un modo preciso de medir el tiempo, es imposible
+analizar o comparar cualquier característica. Es importante conocer cómo medir
+el tiempo de ejecución de un programa o un trozo de código, y entender las
+limitaciones de nuestra herramienta de medida.
+
+La técnica más básica para medir el tiempo en un sistema informático es la misma
+que se utiliza para medir cualquier otro tiempo; con un cronómetro empezaríamos
+desde cero, aunque en un sistema informático el tiempo suele comenzar desde que
+el sistema fue encendido o desde una fecha concreta. Medimos un intervalo de
+tiempo leyendo los valores de dicho contador al principio del proceso que quiere
+ser medido y al final; siendo el intervalo de tiempo la diferencia entre ambos
+valores. Si usamos los pasos
+de reloj del sistema, contabilizaremos dicha diferencia entre los pasos y luego
+multiplicaremos por el tiempo necesario para un paso del reloj.
+
+Por poner un ejemplo más significativo, vamos a ver un pseudo-programa de cómo
+se realizaría este cálculo. Considerando la función inicio\_contadores() como
+aquella que inicializa las estructuras necesarias para acceder a los contadores
+internos del sistema; este temporizador es un simple contador que es
+incrementado continuamente cada periodo de tiempo definido en la variable
+ciclo\_reloj; leer la variable contador\_ciclos significa obtener el valor actual
+del temporizador.
+
+\begin{verbatim}
+main()
+{
+     int   i;
+     float a;
+
+     inicio_contadores();
+
+     /* Leemos el contador al principio */
+     comienzo=contador_ciclos;
+	
+     /* Cálculos a medir */
+     for(i=0;i<100;i++) 
+          a=i*a/10;
+	
+     /* Contador al final de los cálculos */
+     fin=contador_ciclos;
+
+     tiempo_transcurrido=(fin-comienzo)*ciclo_reloj;
+}
+\end{verbatim}
+
+Para empezar a contabilizar una porción de código, se obtiene el valor actual
+del contador y es almacenado en la variable comienzo; al final del código se
+vuelve a obtener dicho valor. La diferencia entre esos dos valores es el número
+total de ciclos de reloj que se han necesitado para completar el trabajo, y el
+tiempo total no es más que esa cantidad de ciclos multiplicada por el tiempo que
+necesita cada ciclo para ejecutarse.
+
+Esta técnica para medir el tiempo necesario para la ejecución de un código se la
+suele llamar \textit{wall clock}, ya que mide el tiempo total
+que un usuario debe esperar para obtener los resultados producidos por una
+aplicación. Esta medida incluye el tiempo necesario en acceder a memoria,
+esperar entrada/salida, nueva memoria y otras necesidades del sistema que se
+ejecutan para este proceso; esto nos da una pista de un problema, si el sistema
+donde se ejecuta esta prueba es de tiempo compartido, puede que los contadores
+reflejen el tiempo en el que la aplicación ha estado esperando por tiempo de
+procesador mientras otras tareas del sistema se han ejecutado.
+
+Hay gente que opina que añadir este tiempo extra a las medidas no es justo, y
+que es mejor medir el tiempo exacto que el proceso utiliza la CPU, el llamado
+tiempo de uso de CPU, que no incluye el tiempo que el programa está a la espera
+de la CPU a consecuencia de que otra aplicación está ejecutándose. Lo malo de esta medida
+es que a veces la aplicación no está en la CPU debido a que esta esperando por
+datos, y ese tiempo no se contabiliza. Lo importante es dejar bien claro lo
+que se está midiendo para que el lector del informe pueda valorar si esa
+información le es o no útil.
+
+Además del consumo extra del sistema, el tiempo de ejecución del mismo programa
+de una medición a otra puede variar mucho si utiliza datos generados
+aleatoriamente, o del estado del sistema: ocupación de memoria, estado de los
+buffers, etc. Lo que hace que el tiempo de ejecución del programa no sea
+determinista, y hace necesario medir el tiempo de ejecución varias veces e
+incluir la media y la varianza de dichos tiempos en el informe.
+
+El tiempo medido de esta manera proporciona una unidad de medida que es
+intuitiva, fiable, repetible, fácil de medir, consistente entre sistemas e
+independiente de influencias externas; satisface todas las características de
+una buena medida de rendimiento, por lo que el tiempo de ejecución es una de las
+mejores métricas de rendimiento que se pueden utilizar a la hora de analizar el
+rendimiento de un sistema informático.
+
+\subsection{Otros tipos de medidas de rendimiento}
+
+Además de las medidas de rendimiento basadas en tareas del procesador, hay
+muchas otras medidas que se utilizan en los análisis de rendimiento; por
+ejemplo, el tiempo de respuesta del sistema, que indica el tiempo necesario en
+atender una petición del usuario; esta métrica se suele usar para analizar
+sistemas dedicados al procesamiento de transacciones en línea. La capacidad de
+procesar trabajo es una medida del número de trabajos u operaciones que son
+completados por unidad de tiempo; el rendimiento de un sistema de procesamiento
+de vídeo en tiempo real puede ser medido en términos del número de fotogramas
+que puede procesar en un segundo; el ancho de banda de una red de comunicaciones
+cuantifica el número de bits que pueden ser transmitidos a través de la red en
+un segundo. Como se ha visto, se pueden definir muchas unidades de medidas para
+adecuarse al problema que se quiere analizar.
+
+
+\subsection{Ganancia y mejora relativa}
+La \textit{Ganancia} (Speedup) y la \textit{mejora relativa} son métricas útiles para
+comparar sistemas ya que normalizan el rendimiento entorno a una base; aunque
+normalmente se definan en términos de capacidad de procesamiento o velocidad,
+también se pueden usar directamente con tiempos de ejecución.
+
+\subsubsection{Ganancia}
+La ganancia de un sistema B respecto a un sistema A esta definida por $S_B,A$
+de tal manera que $R_B = S_B,A * R_A$, donde $R_A$ y $R_B$ son las unidades de
+velocidad (métricas de velocidad) que estamos comparando. Podemos decir que el
+sistema B es $S_B,A$ veces más rápido que el sistema A. Si definimos la
+velocidad como la ``distancia'' entre el tiempo (recordemos que la distancia
+pueden ser las instrucciones procesadas), tenemos $R_A=D_A/T_A$ y $R_B=D_B/T_B$
+donde  $D_A$ y $D_B$ son las distancias y $T_A$ junto con $T_B$ es el tiempo; si
+suponemos que la distancia (trabajo realizado) es el mismo $D = D_A = D_B$,
+tenemos la siguiente definición de ganancia del sistema B sobre el sistema A:
+
+\begin{equation}
+S_B,A=\frac{R_B}{R_A}=\frac{D/T_B}{D/T_A}=\frac{T_A}{T_B}
+\end{equation}
+
+\subsubsection{Mejora relativa}
+La mejora relativa es otra técnica para normalizar el rendimiento, expresando la
+mejora de un sistema a otro a través de tantos por ciento. Si usamos las medidas
+de velocidad $R_A$ y $R_B$ con los sistemas A y B, la mejora relativa del
+sistema B sobre el sistema A se define como:
+
+\begin{equation}
+\triangle_B,A = \frac{R_B - R_A}{R_A}
+\end{equation}
+
+Si asumimos como antes que el tiempo de cada medida se hace ejecutando el mismo
+programa y por lo tanto la ``distancia'' es la misma, $R_A=D/T_A$ y $R_B=D/T_B$,
+definimos la mejora relativa como:
+
+\begin{equation}
+\triangle_B,A = \frac{R_B - R_A}{R_A}=\frac{D/T_B - D/T_A}{D/T_A}=\frac{T_A -
+T_B}{T_B}=S_B,A - 1
+\end{equation}
+
+Lo más normal es que el valor de $\triangle_B,A$ se multiplique por 100 para
+expresar la mejora relativa como un porcentaje respecto al sistema base. Esta
+definición produce valores positivos si el sistema B es más rápido que el
+sistema A, y valores negativos si el sistema B es más lento.
+
+\subsubsection{Ejemplo}
+
+Por poner un ejemplo de como aplicar estas dos maneras de normalizar datos,
+vamos a exponer los datos de  cuatro sistemas (\tablename\
+\ref{tab:acelcambio}), cada uno de los cuales tarda un tiempo
+distinto en realizar una misma tarea; utilizaremos como sistema base el sistema
+número uno.
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabularx}{\linewidth}{XXXX}
+\hline
+Sistema & Tiempo de Ejecución & Ganancia & Cambio relativo \\
+$x$ & $T_x$ & $S_x,1$ & $\triangle_x,1$ \% \\
+\hline
+1 & 480 & 1 & 0 \\ 
+2 & 360 & 1,33 & +33 \\
+3 & 540 & 0,89 & -11 \\
+4 & 210 & 2,89 & +129 \\
+\hline
+\end{tabularx}
+\end{center}
+\caption{Ejemplo de aceleración y cambio relativo}
+\label{tab:acelcambio}
+\end{table}
+
+\subsection{Métricas de medias y métricas de objetivos}
+
+Una de las características más importantes de una métrica de rendimiento es que
+se pueda confiar en sus valores, por lo que un problema con muchas de las
+medidas que hemos comentado es que los valores que se obtienen pueden no ser
+útiles. Lo que hace a una unidad de medida que sea de confianza es la precisión
+y la consistencia con que la que se realiza cada medición hasta llegar al
+objetivo; aquellas métricas que lo miden todo, sea útil o no para nuestro
+análisis, se llaman \textit{Métricas de medias}, frente a aquellas que miden
+sólo el trabajo útil que son las \textit{métricas de objetivos}.
+
+Para ver la diferencia entre estos dos tipos de métricas, vamos a considerar un
+problema consistente en el producto de un vector; este problema ejecuta N sumas
+en punto flotante y N multiplicaciones, con un total de 2N operaciones en punto
+flotante. Si el tiempo para ejecutar las sumas es $t_+$ ciclos y el tiempo de
+las multiplicaciones es $t_*$ ciclos, el tiempo total es $t_1=N(t_+ +
+t_*)$ ciclos.
+\begin{verbatim}
+s=0;
+for(i=1;i<N;i++)
+     s=s+x[i]*y[i];
+\end{verbatim}
+
+El ratio de ejecución de operaciones es:
+\begin{equation}
+R_1=\frac{2N}{N(t_+ + t_*)}=\frac{2}{(t_+ + t_*)}FLOPS/ciclo
+\end{equation}
+
+Ya que no es necesario realizar la suma en las multiplicaciones en la que alguno
+de sus miembros es cero, es posible reducir el tiempo total de ejecución si
+evitamos sumar y multiplicar dichos casos.
+
+\begin{verbatim}
+s=0;
+for(i=1;i<N;i++)
+     if(x[i]!=0 && y[i]!=0)
+          s=s+x[i]*y[i];
+\end{verbatim}
+
+Si la condición requiere $t_if$ ciclos adicionales para ejecutarse, el tiempo
+total necesario para ejecutar el programa es: $t_2=N[t_if + f*(t_+ + t_*)]$
+ciclos,
+donde f es la proporción de N cuyos $x[i]$ e $y[i]$ no son cero. Dado que ahora
+el número total de sumas y multiplicaciones ejecutado es $2Nf$, el ratio de
+ejecución actual es:
+\begin{equation}
+R_1=\frac{2Nf}{N[t_if + f*(t_+ + t_*)]}=\frac{2f}{t_if + f*(t_+ + t_*)}FLOPS/ciclo
+\end{equation}
+
+Demos valores concretos: $t_if=4 ciclos$,$t_+=5 ciclos$,$t_*=10 ciclos$,
+$f=10\%$, y cada ciclo son 4ns (una velocidad de 250Mhz):
+\begin{itemize}
+\item $t_1=N(t_+ + t_*) =N(5 + 10)*4ns = 60N ns$
+\item $t_2=N[t_if + f*(t_+ + t_*)]=N[4+0.1(5+10)]*4ns=22N ns$
+\end{itemize}
+
+Para realizar el mismo trabajo vemos que la ganancia del programa 2, en base al
+primer programa es $S_2,1=60N/22N=2.73$.
+
+Pero vamos a calcular los ratios de ejecución de instrucciones de cada programa:
+\begin{itemize}
+\item $R_1=2/(60 ns)=33 MFLOPS/ciclo$
+\item $R_2=2(0.1)/(22 ns)= 9,09 MFLOPS/ciclo$
+\end{itemize}
+
+Por lo que usando métrica de objetivos tenemos que el programa es un 173\% más
+rápido ya que ejecuta el mismo trabajo en menos tiempo: 60 ns a 22 ns. Pero si
+utilizamos una métrica de medias, que indica las operaciones realizadas por
+ciclo, el primer programa es el \textit{más potente} ya que tiene más MFLOPS que
+el segundo; esto último ocurre porque las métricas basadas en simples medias dan
+un crédito a cualquier trabajo realizado, sea útil o no. Con este ejemplo se han
+visto los problemas de elegir la métrica incorrecta para obtener unas
+conclusiones.
+
+\section{Arquitecturas paralelas}
+No hay que olvidar que, aunque las especificaciones del benchmark TPC-C estén
+destinadas a un análisis de rendimiento, el rendimiento que vamos a estudiar es
+el de máquinas multiprocesador; donde en un mismo instante puede haber 16 o 32
+procesos ejecutándose de manera simultanea.
+
+Estas arquitecturas paralelas son muy variadas, sería imposible discutir todas y
+cada una de ellas con detalle: puntos fuertes, características que las
+distinguen, problemas, etc, por lo que normalmente se trata con modelos
+abstractos y simples que son aplicables a un bueno número de máquinas existentes
+(y futuras). El problema es que con estos modelos no se puede predecir el
+rendimiento de manera precisa, y son tan simples que no representan ninguna
+máquina real; aun así estos modelos ayudan conceptualmente al desarrollo de
+algoritmos y al análisis de bastantes problemas de manera que resultan mucho más
+manejables.
+
+\subsection{Clasificación básica}
+De cara al programador hay dos maneras de ver las cosas, el paralelismo
+\textit{implícito} y el paralelismo \textit{explícito}. El paralelismo implícito
+no requiere la intervención del programador, ya que el propio código que teclea
+es paralelo sin necesidad de indicar que parte lo es; en cambio en el
+paralelismo explícito, el programador tiene constancia de dicho paralelismo e
+interviene en él de alguna manera.
+
+En cuanto a los sistemas paralelos se pueden dividir en dos grandes categorías:
+\textit{Flujo de control} y \textit{Flujo de datos} \cite{parhami02}; los primeras están
+basados en los mismos principios que la máquina de von Neumann, excepto porque
+múltiples instrucciones pueden ejecutarse a la vez. Los sistemas paralelos de
+flujo de datos son totalmente diferentes ya que no hay ningún puntero a un grupo
+de instrucciones que se estén ejecutando en un momento dado; el control está
+totalmente distribuido. 
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=10cm]{cap2/flynn.pdf}
+\caption{La clasificación de Flynn-Johnson de los sistemas informáticos}
+\label{fig:flynn}
+\end{center}
+\end{figure}
+
+
+En 1996, M. J. Flynn propuso una clasificación en 4 categorías de los sistemas
+informáticos basándose en el flujo de datos y el flujo de instrucciones; esta
+clasificación se ha convertido en un estándar y se usa en muchos ámbitos. Flynn
+acuñó cuatro abreviaturas para estas 4 clases: SISD, SIMD, MISD y MIMD,
+basándose en el número de flujos de instrucciones (simple o múltiple) y en los
+flujos de datos (simples o múltiples) \cite{Flyn96}, Fig.
+\ref{fig:flynn}.
+
+Una breve descripción de cada tipo \cite{bastida}, \cite{pardo02}:
+\begin{enumerate}
+\item \textbf{SISD.} (Single Instruction stream, Single Data stream) Flujo único
+de instrucciones y flujo único de datos. Este es el concepto de arquitectura serie
+de Von Neumann donde, en cualquier momento, sólo se está ejecutando una única
+instrucción. A menudo a los SISD se les conoce como computadores serie escalares. Todas las 
+máquinas SISD poseen un registro simple que se llama contador de programa 
+que asegura la ejecución en serie del programa. Conforme se van leyendo las 
+instrucciones de la memoria, el contador de programa se actualiza para que
+apunte a la siguiente instrucción a procesar en serie. Prácticamente ningún
+sistema puramente SISD se fabrica hoy en día ya que la mayoría de procesadores
+modernos incorporan algún grado de paralelismo como es la segmentación de
+instrucciones o la posibilidad de lanzar dos instrucciones al mismo tiempo (superescalares). 
+Fig.\ref{figsisd}.
+\begin{figure}[hp]
+\begin{center}
+\includegraphics[width=9cm]{cap2/sisd.pdf}
+\caption{Organización Simple Instruction Simple Data (SISD)}
+\label{figsisd}
+\end{center}
+\end{figure}
+
+\item \textbf{SIMD.} (Single Instruction stream, Multiple Data stream) Flujo de
+instrucción simple y flujo de datos múltiple. Esto significa que una única
+instrucción es aplicada sobre diferentes datos al mismo tiempo. En las máquinas de este tipo, varias unidades 
+de procesado diferentes son invocadas por una única unidad de control. Al igual 
+que las MISD, las SIMD soportan procesamiento vectorial (matricial) asignando 
+cada elemento del vector a una unidad funcional diferente para procesamiento 
+concurrente. Por ejemplo, el cálculo de la paga para cada trabajador en una
+empresa, es repetir la misma operación sencilla para cada trabajador; si se
+dispone de un arquitectura SIMD esto se puede calcular en paralelo para cada
+trabajador. Por esta facilidad en la paralelización  de vectores de datos (los
+trabajadores formar un vector) se les llama también procesadores vectoriales. 
+, Fig. \ref{figsimd}.
+\begin{figure}
+\begin{center}
+\includegraphics[width=9cm]{cap2/simd.pdf}
+\caption{Organización Simple Instruction Multiple Data (SIMD)}
+\label{figsimd}
+\end{center}
+\end{figure}
+
+\item \textbf{MISD.} 
+(Multiple Instruction stream, Single Data stream) Flujo múltiple de
+instrucciones y único flujo de datos. Esto significa que varias instrucciones
+actúan sobre el mismo y único trozo de datos. Este tipo de máquinas se pueden 
+interpretar de dos maneras. Una es considerar la clase de maquinas que
+necesitando unidades  de procesamiento diferentes recibieran instrucciones
+distintas operando sobre
+los mismos datos. Esta clase de arquitectura ha sido clasificada por numerosos
+arquitectos de computadores como impracticable o imposible, y en estos momentos no 
+existen ejemplos que funcionen siguiendo este modelo. Otra forma de interpretar 
+los MISD es como una clase de máquinas donde un mismo flujo de datos fluye 
+a través de numerosas unidades de proceso. Arquitecturas altamente segmentadas, 
+como los procesadores vectoriales, son clasificados a 
+menudo bajo este tipo de máquinas. Las arquitecturas segmentadas, o
+encauzadas, realizan el procesamiento vectorial a través de una serie de etapas, cada
+una ejecutando una función  particular produciendo un resultado intermedio. La
+razón por la cual dichas arquitecturas son clasificadas como MISD es que los elementos 
+de un vector pueden ser considerados como pertenecientes al mismo dato, y todas 
+las etapas del flujo representan múltiples instrucciones que son aplicadas
+sobre ese vector, Fig. \ref{figmisd}.
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=9cm]{cap2/misd.pdf}
+\caption{Organización Multiple Instruction Simple Data (MISD)}
+\label{figmisd}
+\end{center}
+\end{figure}
+\afterpage{\clearpage}
+\item \textbf{MIMD.} (Multiple Instruction stream, Multiple Data stream) Flujo
+de instrucciones múltiple y flujo de datos múltiple. Son máquinas que poseen varias unidades
+de proceso en las cuales se pueden realizar múltiples instrucciones sobre datos
+diferentes de forma simultánea. Las MIMD son las más complejas, pero son también 
+las que potencialmente ofrecen una mayor eficiencia en la ejecución concurrente
+o paralela. Aquí la concurrencia implica que no solo hay varios
+procesadores operando simultáneamente, sino que además hay varios programas
+(procesos) ejecutándose también al mismo tiempo, Fig. \ref{figmimd}.
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=9cm]{cap2/mimd.pdf}
+\caption{Organización Multiple Instruction Multiple Data (MIMD)} 
+\label{figmimd}
+\end{center}
+\end{figure}
+\end{enumerate}
+
+\subsection{Otras clasificaciones}
+La clasificación de Flynn ha demostrado funcionar bastante bien para la
+tipificación de sistemas, y se ha venido usando desde décadas por la mayoría de
+la comunidad informática. Sin embargo, los avances en tecnología y diferentes
+topologías, han llevado a sistemas que no son tan fáciles de clasificar dentro de los 4 tipos
+de Flynn. Por ejemplo, las arquitecturas híbridas. Para solucionar esto se han
+propuesto otras clasificaciones, donde los tipos SIMD y MIMD de Flynn se suelen conservar, pero
+que sin duda no han tenido el éxito de la de Flynn.
+
+La figura \ref{figclascompleta} muestra una clasificación ampliada que incluye alguno de los avances 
+en arquitecturas de computadores en los últimos años. No obstante, tampoco
+pretende ser una caracterización completa de todas las arquitecturas paralelas
+existentes. 
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=9cm]{cap2/clascompleta.pdf}
+\caption{Clasificación extendida de las arquitecturas paralelas}
+\label{figclascompleta}
+\end{center}
+\end{figure}
+
+\subsubsection{Multiprocesadores}
+De todas estas arquitecturas se va a hacer una mención especial a los
+\textbf{multiprocesadores}. Un multiprocesador se puede ver como un computador
+paralelo compuesto por varios procesadores interconectados que pueden compartir un mismo sistema de memoria.
+Los procesadores se pueden configurar para que ejecute cada uno una parte de un
+programa o varios programas al mismo tiempo. 
+
+Dado que los multiprocesadores comparten los diferentes módulos de memoria, 
+pudiendo acceder varios procesadores a un mismo módulo, a los multiprocesadores
+también se les llama sistemas de memoria compartida. Dependiendo de la forma en
+que los procesadores comparten la memoria, podemos hacer una subdivisión de los
+multiprocesadores: 
+\begin{itemize}
+\item\textbf{UMA.} (Uniform Memory Access) En un modelo de Memoria de Acceso Uniforme, la 
+memoria física está uniformemente compartida por todos los procesadores. Esto 
+quiere decir que todos los procesadores tienen el mismo tiempo de acceso a todas 
+las palabras de memoria. Cada procesador puede tener su caché privada, y los 
+periféricos son también compartidos de alguna manera. A estos computadores se les suele 
+llamar sistemas fuertemente acoplados dado el alto grado de compartición de los recursos. 
+La red de interconexión toma la 
+forma de bus común, conmutador cruzado, o una red multietapa.
+Cuando todos los procesadores tienen el mismo acceso a todos los periféricos,
+el sistema se llama \textit{multiprocesador simétrico}. En este caso, todos los
+procesadores 
+tienen la misma capacidad para ejecutar programas, tal como el Kernel o las 
+rutinas de servicio de entrada/salida. En un \textit{multiprocesador asimétrico}
+, sólo un subconjunto de los procesadores pueden ejecutar programas. A los que pueden, 
+o al que puede ya que muchas veces es sólo uno, se le llama maestro. Al resto de procesadores 
+se les llama procesadores adheridos (attached processors). La figura
+\ref{figuma} muestra el modelo UMA de un multiprocesador. 
+Es frecuente encontrar arquitecturas de acceso uniforme que además tienen coherencia 
+ caché, a estos sistemas se les suele llamar \textbf{CC-UMA} (Cache-Coherent 
+Uniform Memory Access). 
+\begin{figure}
+\begin{center}
+\includegraphics[width=9cm]{cap2/uma.pdf}
+\caption{Modelo UMA de multiprocesador}
+\label{figuma}
+\end{center}
+\end{figure}
+
+\item\textbf{NUMA.} Un multiprocesador de tipo NUMA es un sistema de memoria
+compartida donde el tiempo de acceso varía según el lugar donde se encuentre localizado
+el acceso. La figura \ref{fignuma} muestra una posible configuración de tipo NUMA, 
+donde toda la memoria es compartida pero local a cada módulo procesador. Otras posibles 
+configuraciones incluyen los sistemas basados en agrupaciones (clusters) de
+sistemas como el de la figura que se comunican a través de otra red de
+comunicación que puede incluir una memoria compartida global.
+
+La ventaja de estos sistemas es que el acceso a la memoria local es más rápido
+que en los UMA aunque un acceso a memoria no local es más lento. Lo que se 
+intenta es que la memoria utilizada por los procesos que ejecuta cada
+procesador, se encuentre en la memoria de dicho procesador para que los accesos
+sean lo más locales que se pueda.
+
+Aparte de esto, se puede añadir al sistema una memoria de acceso global. En 
+este caso se dan tres posibles patrones de acceso. El más rápido es el acceso
+a memoria local. Le sigue el acceso a memoria global. El más lento es el acceso
+a la memoria del resto de módulos.
+
+Al igual que hay sistemas de tipo CC-UMA, también existe el modelo de acceso 
+a memoria no uniforme con coherencia de caché \textbf{CC-NUMA} (Cache-Coherent 
+Non-Uniform Memory Access) que consiste en memoria compartida distribuida y 
+directorios de cache.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=9cm]{cap2/numa.pdf}
+\caption{Modelo NUMA de multiprocesador}
+\label{fignuma}
+\end{center}
+\end{figure}
+
+\item\textbf{COMA.} (Cache Only Memory Access) Un multiprocesador que solo use
+caché como memoria es considerado de tipo COMA. La figura \ref{figcoma} muestra
+el modelo COMA de multiprocesador. En realidad, el modelo COMA es un caso especial del 
+NUMA donde las memorias distribuidas se convierten en cachés. No hay jerarquía de 
+memoria en cada módulo procesador. Todas las cachés forman un mismo espacio 
+global de direcciones. El acceso a las cachés remotas se realiza a través de los 
+directorios distribuidos de las cachés. Dependiendo de la red de interconexión 
+empleada, se pueden utilizar jerarquías en los directorios para ayudar en la
+localización de copias de bloques de caché. El emplazamiento inicial de datos no es 
+crítico puesto que el dato acabará estando en el lugar en que se use más. 
+\begin{figure}
+\begin{center}
+\includegraphics[width=9cm]{cap2/coma.pdf}
+\caption{Modelo COMA de multiprocesador}
+\label{figcoma}
+\end{center}
+\end{figure}
+\end{itemize}
+
+\section{El benchmark TPC-C}
+
+Los \textbf{benchmarks} producidos por el TPC son estándares industriales; el
+TPC distribuye gratuitamente las especificaciones de estas pruebas, por lo que
+cualquiera es libre de implementar y publicar un resultado TPC. Sin embargo, hay
+que aclarar que todos los datos de la implementación tienen que ser enviados al
+TPC para ser revisados, ya que si un fabricante realiza su prueba TPC de manera
+incorrecta o de una manera parcial y subjetiva deberá retirar los resultados y
+no los podrá usar públicamente, por lo que estas reglas protegen a los usuarios
+de resultados falsos o confusos a la vez que mantienen la credibilidad de los
+resultados de un benchmark TPC.
+ 
+Las especificaciones de los \textit{benchmarks}  TPC son documentos de unas
+30-50 páginas que definen como configurar, ejecutar y documentar un benchmark
+TPC; además y aparte de las pruebas de rendimiento, los benchmarks TPC necesitan
+varias pruebas independientes de fiabilidad y seguridad que garanticen a los
+usuarios que el sistema que está siendo probado se asemeje a uno de un entorno
+real de producción, por lo que normalmente los benchmark TPC son bastante más
+complejos y requieren de más tiempo para implementar que otras pruebas más
+sencillas que pueden realizarse contra una simple cinta de datos.
+
+
+\subsection{Características del benchmark TPC-C}
+ 
+El benchmark TPC-C es una carga de trabajo \textit{de procesado de transacciones
+en línea (OLTP)}; OLTP (online transaction processing) es una clase de trabajo
+que facilita y dirige ciertas aplicaciones orientadas a transacciones,
+normalmente para entrada y obtención de datos en un gran número de industrias,
+como por ejemplo: bancos, pedidos por correo, líneas áreas, supermercados y
+fabricantes.
+
+Esta prueba es una mezcla de transacciones intensivas de sólo lectura y
+actualización que simulan el trabajo que se puede encontrar en entornos
+complejos con aplicaciones OLTP, que suelen tener las siguientes
+características:
+
+\begin{itemize}
+\item La ejecución simultanea de varios tipos de transacciones que resultan en una gran complejidad.
+\item Ejecución de transacciones en línea (on-line) y diferidas
+\item Múltiples terminales conectados.
+\item Tiempos de ejecución de aplicaciones moderados.
+\item Gran cantidad de entrada y salida en disco.
+\item Transacciones que cumplan las propiedades ACID 
+(Atomic, Consistent, Isolation, and Durable - Atómicas, Consistentes, Aisladas 
+y Resistentes).
+\item Distribución no uniforme del acceso a los datos a través de claves primarias y secundarias.
+\item Bases de datos con varias tablas, de varios tamaños, diferentes tipos de atributos y relaciones.
+\item Con conflictos entre el acceso a datos y la actualización.
+\end{itemize} 
+
+La métrica del rendimiento que obtiene el TPC-C es un indicador del rendimiento
+a la hora de procesar transacciones midiendo el número de pedidos procesados por
+minuto. Varias transacciones son usadas para simular la actividad que se produce
+en un negocio a la hora de procesar un pedido, y cada transacción está sujeta a
+tiempos de respuesta. Las unidades a utilizar para el rendimiento serán
+\textit{transacciones por minuto} \textbf{tpmC}. Si se quiere cumplir
+estrictamente con el estándar TPC-C aparte de los resultados en unidades tpmC,
+se debe incluir el precio por cada unidad tpmC así como la disponibilidad y el
+precio de la configuración usada.
+
+Aunque estas especificaciones expresen la implementación en términos de un
+modelo de datos relacional con un esquema convencional de bloqueos, la base de
+datos puede ser implementada usando cualquier sistema de bases de datos, sistema
+de ficheros, o sistema de almacenamiento de datos que proporcione una
+implementación funcionalmente equivalente; por lo que aunque en las
+especificaciones del estándar se digan las palabras ``tabla'', ``fila'' o
+``columna'' no implica un uso de un sistema relacional.
+
+A la hora de comparar los resultados obtenidos por un benchmark TPC-C, hay que
+indicar que sólo los resultados de una prueba son comparados con los de otra
+prueba si ambas pruebas son conformes a la misma revisión del TPC-C; por lo que
+aunque la terminología que se extrae del estándar pueda parecerse a otros
+benchmarks del TPC o de otras entidades, no implica que estos resultados sean
+comparables con otros benchmarks.
+
+Este benchmark ofrece un entorno rico que intenta emular muchas aplicaciones
+OLTP, aunque no siempre es posible reflejar todo el rango de aplicaciones OLTP
+así como sus necesidades, es necesario indicar que los resultados obtenidos por
+este benchmark en un sistema pueden no acercarse a las necesidades reales de un
+sistema/aplicación concreto debido a que el TPC-C no se aproxima a esas
+necesidades. Con esto se puede afirmar que el rendimiento obtenido en un sistema
+aplicando este benchmark no se aplica necesariamente a otras cargas de trabajo o
+entornos, por lo que no se recomienda extrapolar los resultados más allá del
+sistema donde fueron obtenidos.
+
+Los resultados del benchmark dependen mucho de la carga de trabajo, necesidades de la aplicación y diseño e implementación del sistema, por lo que el rendimiento relativo variará como resultado de estos y otros factores; por lo tanto, TPC-C no debe ser usado como un sustituto para sacar resultados de una aplicación concreta, y mucho menos cuando contemplamos aspectos críticos como planificación de capacidad o evaluación de un producto final.
+
+\subsection{Algunas pautas para la implementación}
+Como ya dijimos el objetivo de las pruebas TPC es obtener datos de rendimiento relevantes y objetivos para la industria, para alcanzar estos objetivos hace falta que las pruebas, los sistemas y las tecnologías empleadas:
+\begin{itemize}
+\item Estén disponibles al público.
+\item Contemplen aspectos importantes en el área de negocio que intenta simularse.
+\item Exista un número de usuarios importante que implementaría lo que se intenta simular.
+\end{itemize} 
+
+Estas características se usan para saber si una implementación particular es un benchmark especial, y son muy generales, se pueden listar otras características más concretas que pueden indicar en mayor o menor medida si el benchmark que se realiza es especifico:
+
+\begin{itemize}
+\item ¿Está la implementación públicamente disponible, documentada y soportada?
+\item La implementación tiene restricciones importantes o su uso está muy
+limitado más allá del TPC-C.
+\item La implementación o parte de ella se integra muy mal en un producto final.
+\item La implementación se aprovecha de la naturaleza limitada del benchmark TPC-C de tal manera que no puede ser aplicada generalmente al entorno que intenta simular.
+\item El fabricante del sistema no aprueba la implementación.
+\item La implementación necesita de ciertos aspectos excepcionales por parte del usuario final, programador o administrador.
+\item La implementación no se usa por usuarios finales en el área de mercado que el benchmark simula.
+\end{itemize} 
+
+No es necesario que todas estas condiciones sean evitadas/cumplidas para que una implementación pueda tildarse de específica, pero ayudan en menor o mayor grado a clasificarla.
+

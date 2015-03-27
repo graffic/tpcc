@@ -1,0 +1,133 @@
+\chapter{Introducción}
+Dentro del Departamento de Informática, en el grupo de investigación de
+Arquitectura y Tecnología de Computadores (conocido como ATC), se realizan
+simulaciones de aplicaciones paralelas (como las que se se pueden encontrar en
+Splash-2 \cite{woo95splash}) con el simulador RSIM \cite{pai97rsim}, para 
+probar sus trabajos de
+protocolos de coherencia caché \cite{Sahelices00a,Sahelices00b,Llanos00}. Esta
+investigación a su vez está integrada dentro del proyecto {\em Computación de 
+Altas Prestaciones IV. Jerarquía de Memoria de Altas Prestaciones} de la 
+Universidad de Zaragoza (Ref. TIN2004-00739-C02-02). En base a esto y para
+mejorar la fiabilidad de los resultados obtenidos se hace necesario ampliar y 
+completar el repertorio de aplicaciones y núcleos disponibles en las simulaciones.
+
+El propósito de este proyecto de fin de carrera es múltiple:
+\begin{itemize}
+\item Primero, colaborar con la aplicación que se ha implementado a lo largo del
+desarrollo del proyecto, y así aumentar la gama de aplicaciones disponibles para
+las simulaciones del grupo ATC.
+\item A la vez que se hace disponible al resto de la comunidad informática un
+programa capaz de cuantificar el rendimiento de un sistema paralelo, basado en
+un estándar y que funciona independientemente de otros sistemas software.
+\item Por último, completar la formación académica de la carrera de Ingeniería
+Técnica de Informática de Sistemas dando una aplicación a un gran número de
+conceptos adquiridos durante la misma.
+\end{itemize}
+
+La aplicación que aquí se detalla es un software de medida de rendimiento,
+comúnmente conocido por su nombre en inglés \textit{benchmark}. Este benchmark
+pretende ser una aplicación ejecutable en entornos UNIX y similares, en los que es
+muy común encontrarse máquinas con múltiples procesadores. La poder ejecutar la
+aplicación en estos entornos UNIX, se ha aplicado la compatibilidad a través del
+código fuente, utilizando:
+\begin{itemize}
+\item El lenguaje de programación C, muy extendido en entornos UNIX, permite
+obtener la aplicación ejecutable en dichos entornos UNIX sin cambiar el código
+gracias a las especificaciones ANSI-C y POSIX \cite{posix}.
+\item La biblioteca de macros PARMACS \cite{parmacs}, para una programación
+paralela transportable entre sistemas paralelos con diferente arquitectura de
+memoria.
+\end{itemize}
+
+\subsubsection{TPC-C}
+Este benchmark está basado en las especificaciones del TPC (\textit{Transaction
+Processing Performance Council}) \cite{tpc} conocidas como TPC-C; además 
+está destinado a medir el rendimiento del procesamiento de transacciones en
+línea simulando diferentes tipos de transacciones y una compleja base de datos
+en un entorno empresarial común y genérico pero que se aproxima bien al uso
+actual de los sistemas de bases de datos existentes hoy en día.
+
+En la industria de sistemas servidores dicho benchmark es un punto de
+referencia;
+si bien TPC-C son sólo unas especificaciones, que aplicadas correctamente dan lugar
+a un sistema de medida del rendimiento con unidades comparables entre distintos
+sistemas. En el caso del TPC-C, la unidad de medida es la transacción, y la
+capacidad de los sistemas se compara en transacciones por minuto (tpmC). En
+cuanto a los sistemas paralelos, dada la clasificación de las transacciones en 5
+tipos, en base a unas reglas de unicidad (ACID), y gracias a la concurrencia de
+peticiones , el benchmark TPC-C se convierte en un buen candidato para medir el 
+rendimiento de estos sistemas paralelos.
+
+Las especificaciones TPC-C dan lugar a un benchmark, que normalmente es
+implementado por empresas propietarias ya sea para medir el rendimiento de los
+sistemas que ponen a la venta o para venderlo a las empresas que lo necesiten.
+Esto implica que hay muy pocas implementaciones de uso libre y/o con código
+abierto para poder investigar, por lo que es interesante ampliar el repertorio
+tanto con un diseño como con una implementación libre.
+
+\subsubsection{Notas del diseño}
+Uno de los objetivos es proporcionar al grupo ATC un sistema más para sus
+simulaciones usando RSIM.  Uno de los principales problemas de RSIM es el
+reducido número de bibliotecas que soporta, luego simular programas complejos
+que utilizan un gran número de funciones externas resulta algo inviable, y se
+hace necesario que los programas no dependan más que de la biblioteca estándar de
+funciones.
+
+Aunque el diseño sólo se ha orientado a PARMACS, si se quiere tener la
+posibilidad de trasladar la aplicación de manera sencilla a RSIM, hay que tener
+en cuenta que aplicarlo en el diseño implica que:
+\begin{itemize}
+\item Hay que analizar más allá de las especificaciones, buscando todos los
+subsistemas necesarios para la implementación, ya que no podemos depender de
+bibliotecas externas.
+\item Hay que buscar una arquitectura que abarque todos los subsistemas:
+analizar y diseñar el sistema desde 0.
+\item Dado que hemos hablado de una \textit{compleja base de datos} habrá que
+diseñarla directamente y no sobre un sistema gestor de bases de datos ya
+existente.
+\end{itemize}
+
+\subsubsection{Aspectos de la implementación}
+Las implicaciones que supone el diseño de una aplicación desde cero, además del
+diseño de un sistema de almacenamiento, se reflejan fielmente en la
+implementación. En cuanto al sistema de almacenamiento, supone la tarea de
+codificar un gestor de bases de datos, que aun partiendo de un buen diseño, es
+una traba a superar.
+
+Al estar toda la aplicación implementada en C y usando bibliotecas
+estándar, este proyecto se convierte en un buen candidato tanto para ser
+adaptado a RSIM y poderlo utilizar en las simulaciones;
+como para la medición de rendimiento, de manera
+independiente, de sistemas mono y multiprocesador.
+
+No hay que olvidar que el lenguaje C, sin ser un lenguaje de tan bajo nivel como el
+ensamblador, no implementa ni facilita ciertos paradigmas de la programación que
+en este caso podrían ser de mucha ayuda: orientación a objetos, manejo automático de
+memoria, etc. Por lo que es necesario una implementación cuidadosa e
+ingeniosa en algunos momentos para resolver estos problemas. Aunque de la misma
+manera que hace falta diseñar soluciones ingeniosas, existe el problema de
+encontrar fallos en momentos finales del desarrollo.
+
+\subsubsection{Requerimientos}
+Por último, comentar algunos de los conocimientos más importantes que han hecho
+falta para solucionar todos los problemas encontrados.
+\begin{itemize}
+\item Ingeniería del software: necesaria para analizar los requisitos del
+estándar TPC-C y poder diseñar una arquitectura sostenible para el sistema. Se
+ha hecho un esfuerzo especial en dejar claros los requisitos iniciales y en formar
+el diseño arquitectónico que define los subsistemas.
+\item Programación estructurada: para dar forma a las necesidades del diseño.
+Dado que no se va a utilizar un lenguaje orientado a objetos, hace falta dar
+forma a las necesidades del análisis mediante las estructuras disponibles en la
+programación estructurada.
+\item Lenguaje de programación C: usado para reflejar el diseño en un programa
+compilable y ejecutable. Se ha usado este lenguaje sobre todo por la necesidad de utilizarlo más tarde en
+RSIM, pero también por la compatibilidad entre sistemas.
+\item Estructuras de datos: concretamente árboles de búsqueda y derivados de
+dichos árboles que sean utilizados actualmente en sistemas gestores de bases de
+datos reales.
+\item Sistemas operativos y programación paralela: se aplican a la hora de
+implementar un sistema de almacenamiento concurrente, que servirá de base sólida
+para el funcionamiento paralelo de la aplicación.
+\end{itemize}
+

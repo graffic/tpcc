@@ -1,0 +1,505 @@
+\chapter{Manual de la aplicación}\label{app:manual}
+La implementación del benchmark TPC-C se entrega en código fuente, por lo que
+para poder ejecutarla, hace falta compilarla. Además de las herramientas
+necesarias de desarrollo, esta implementación tiene otros requerimientos, no ya
+del software sino del hardware donde se va a ejecutar.
+
+\section{Requisitos mínimos}
+De hardware o físicos:
+\begin{itemize}
+\item Capacidad en disco: mínimo 80 MiBytes. Debido a los ficheros de carga y poblado,
+aproximadamente se necesitan:
+	\begin{itemize}
+	\item Unos 75 MiBytes por almacén en lo referente al poblado de la base
+	de datos.
+	\item Unos 750 Kibytes por cada 10.000 transacciones programadas.
+	\end{itemize}
+\item Memoria RAM: mínimo 384 MiBytes. Dado que todo el almacenamiento se produce
+en memoria RAM, se necesitan unos 128 MiBytes extra por cada 100.000
+transacciones que se quieran procesar.
+\end{itemize}
+
+Software necesario:
+\begin{itemize}
+\item Compilador de C con preprocesador; preferiblemente \textit{GNU C Compiler}
+(gcc).
+\item Preprocesador de macros \textit{GNU m4}.
+\item Herramienta para la generación automática de ejecutables \textit{GNU Make}
+\item Soporte del sistema operativo para \textit{Hilos POSIX} (pthreads).
+\end{itemize}
+
+Sistemas donde se ha probado la aplicación:
+\begin{itemize}
+\item Principalmente en \textit{Darwin} (Mac OS 10.4.2).
+\item También en linux:
+	\begin{itemize}
+	\item Linux Kernel 2.6.x
+	\item Distribuciones probadas: gentoo y debian.
+	\end{itemize}
+\item Sólo compilación y funcionamiento del generador en Solaris 8
+\end{itemize}
+
+Incompatibilidades:
+\begin{itemize}
+\item Con el sistema operativo \textit{FreeBSD}: el soporte de hilos POSIX es
+nulo.
+\item Con el sistema operativo \textit{OpenBSD}: no permite el acceso a un mismo
+cerrojo desde dos hilos.
+\end{itemize}
+
+\section{Instalación}
+\subsubsection{Preparación del código fuente}
+Para la instalación de la aplicación hace falta obtener el fichero que contiene
+el código fuentes del CD-ROM
+adjunto a esta memoria (ver pag. \ref{app:cdrom}). Una vez tengamos el fichero
+\texttt{tpcc.tar.gz} se procederá a descomprimirlo y desempaquetarlo mediante la
+orden: $tar -xzvf /ruta.al.fichero/tpcc.tar.gz$
+
+Ejemplo:
+\small{\begin{verbatim}
+~$ tar -xzvf tpcc.tar.gz 
+tpcc/
+tpcc/abm_test.parmacs.c
+tpcc/arbolbmas-priv.h
+tpcc/arbolbmas.c
+tpcc/arbolbmas.h
+tpcc/arbolbmas.parmacs.c
+tpcc/basicgen.c
+tpcc/basicgen.h
+tpcc/cargador.c
+tpcc/cargador.h
+tpcc/comparadores.c
+tpcc/comparadores.h
+tpcc/debug.h
+tpcc/generador.c
+tpcc/generador.h
+tpcc/le_test.c
+tpcc/listaenlazada.parmacs.c
+tpcc/listaenlazada.parmacs.h
+tpcc/macros/
+tpcc/macros/c.m4.posix.mutex
+tpcc/Makefile
+tpcc/readwrite.parmacs.c
+tpcc/readwrite.parmacs.h
+tpcc/registros.h
+tpcc/terminal.c
+tpcc/terminal.h
+tpcc/tpcc.parmacs.c
+tpcc/transacciones.c
+tpcc/transacciones.h
+~$ 
+\end{verbatim}}
+
+\subsubsection{Compilación}
+Una vez descomprimido y desempaquetado el código fuente de la aplicación, para generar los
+ejecutables, se accede al directorio \texttt{tpcc} y se teclea la orden
+\texttt{make}. Dado que se utiliza el programa \textit{GNU make}; y algunos sistemas
+que integran un make de otro fabricante, para ejecutar el \textit{GNU make} hay
+que utilizar la orden \texttt{gmake}.
+
+Ejemplo:
+\small{
+\begin{verbatim}
+~/tpcc$ make
+m4 macros/c.m4.posix.mutex readwrite.parmacs.h > readwrite.h
+m4 macros/c.m4.posix.mutex listaenlazada.parmacs.h > listaenlazada.h
+m4 macros/c.m4.posix.mutex tpcc.parmacs.c > tpcc.c
+gcc -g -O0   -c -o tpcc.o tpcc.c
+gcc -g -O0   -c -o arbolbmas.o arbolbmas.c
+gcc -g -O0   -c -o cargador.o cargador.c
+gcc -g -O0   -c -o comparadores.o comparadores.c
+m4 macros/c.m4.posix.mutex listaenlazada.parmacs.c > listaenlazada.c
+gcc -g -O0   -c -o listaenlazada.o listaenlazada.c
+gcc -g -O0   -c -o transacciones.o transacciones.c
+gcc -g -O0   -c -o basicgen.o basicgen.c
+m4 macros/c.m4.posix.mutex readwrite.parmacs.c > readwrite.c
+gcc -g -O0   -c -o readwrite.o readwrite.c
+gcc -lpthread  tpcc.o arbolbmas.o cargador.o comparadores.o 
+listaenlazada.o transacciones.o basicgen.o readwrite.o   -o tpcc
+gcc -g -O0   -c -o generador.o generador.c
+gcc -g -O0   -c -o terminal.o terminal.c
+gcc -lpthread  generador.o basicgen.o terminal.o   -o generador
+m4 macros/c.m4.posix.mutex abm_test.parmacs.c > abm_test.c
+gcc -g -O0   -c -o abm_test.o abm_test.c
+gcc -lpthread  abm_test.o arbolbmas.o readwrite.o   -o abm_test
+gcc -g -O0   -c -o le_test.o le_test.c
+gcc -lpthread  le_test.o listaenlazada.o   -o le_test
+rm tpcc.c listaenlazada.c abm_test.c readwrite.c
+~/tpcc$
+\end{verbatim}
+}
+
+Una vez terminada la compilación del código, se habrán generado 4 ficheros
+ejecutables:
+\begin{itemize}
+\item \texttt{generador}: Generador de experimentos (carga y poblado).
+\item \texttt{tpcc}: Aplicación que realiza la prueba de rendimiento TPC-C.
+\item \texttt{abm\_test}: Pruebas realizadas al subsistema de almacenamiento,
+módulo del árbol B+.
+\item \texttt{le\_test}: Pruebas realizadas al subsistema de almacenamiento,
+módulo de la lista enlazada.
+\end{itemize}
+
+\section{Ejecución}
+Para ejecutar una medición de rendimiento, hacen falta dos pasos:
+\begin{enumerate}
+\item Mediante el programa \texttt{generador}, crear un experimento con los
+ficheros de poblado y de carga.
+\item Ejecutar el benchmark con la orden \texttt{tpcc}, indicándole el nombre
+del experimento y el directorio donde se encuentra.
+\end{enumerate}
+
+\subsection{Generador de carga y poblado}
+Para obtener el experimento utilizaremos el programa \texttt{generador}, si
+tecleamos \texttt{./generador} o \texttt{./generador -h} en el directorio donde
+hemos compilado los ejecutables nos saldrá el siguiente mensaje de información
+sobre el modo de uso del programa.
+\small{\begin{verbatim}
+Modo de uso:
+   ./generador [<opciones>] <dir>
+
+Opciones:
+   -h         Este mensaje.
+   -c         No genera el poblado de la BD (Útil para cambiar la carga)
+   -a número  Cantidad de almacenes................(Por defecto: 1)
+   -t número  Cantidad total de transacciones......(Por defecto: 100)
+   -s número  Cantidad de procesos servidor........(Por defecto: 1)
+   <dir>      Directorio destino del experimento...(Obligatorio)
+\end{verbatim}}
+
+\subsubsection{Descripción de las opciones}
+\begin{itemize}
+\item \texttt{-h} Muestra un mensaje de ayuda y termina la ejecución del
+programa.
+\item \texttt{-c} (opcional) No genera los ficheros correspondientes al poblado
+de la base de datos. Esta opción es útil cuando se tiene una carga concreta y
+deseamos cambiar: la cantidad de transacciones o la cantidad de procesos
+servidor; sin crear de nuevo el poblado.
+
+\item \texttt{-a <número>} (opcional, por defecto 1) Número total de almacenes
+en el poblado de la base de datos. Este número es la unidad básica de poblado,
+debido a que por cada almacén existen 10 zonas, por cada zona 3000 clientes y
+pedidos, etc; si aumentamos el número de almacenes, se multiplican estas últimas
+cardinalidades por dicho número.
+El número máximo de almacenes que se pueden indicar es: $4.294.967.295$
+\item \texttt{-t <número>} (opcional, por defecto 100) Número total de
+transacciones a generar entre todos los servidores. El número máximo de
+transacciones que se pueden generar es: $18.446.744.073.709.551.615$
+\item \texttt{-s <número>} (opcional, por defecto 1) Cantidad de servidores para
+los que generar carga. El número total de transacciones se divide entre el total
+de servidores, y el resultado es número de transacciones que generará por cada
+servidor. El número máximo de servidores que se pueden indicar es:
+$4.294.967.295$
+\end{itemize}
+
+\subsubsection{Ejemplos de uso}
+Generación de datos de entrada para 1 almacén y 2 servidores, dando el nombre
+\textit{prueba} al experimento.
+\small{\begin{verbatim}
+tpcc$ ./generador -s 2 prueba
+Ejecutando ./generador - Generando carga para 
+        * 1 Almacenes
+        * 100 Transacciones
+        * 1 Almacenes
+        * 100 Transacciones
+        * 2 Servidores
+        * Directorio de salida: prueba
+
+-> Generando 100000 productos
+-> Generando 1 almacenes
+-> Generando 100000 entradas de stock para el almacén Nº 0
+-> Generando 10 zonas para el almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 0 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 0 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 0 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 1 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 1 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 1 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 2 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 2 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 2 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 3 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 3 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 3 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 4 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 4 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 4 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 5 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 5 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 5 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 6 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 6 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 6 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 7 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 7 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 7 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 8 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 8 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 8 del
+almacén Nº 0
+-> Generando 3000 clientes para la zona Nº 9 del almacén Nº 0
+-> Generando 3000 pedidos para la zona Nº 9 del almacén Nº 0
+-> Generando 900 nuevos pedidos (partiendo de 2100) para la zona Nº 9 del
+almacén Nº 0
+-> Generando Carga para el servidor 0 - transacciones 50
+-> Generando Carga para el servidor 1 - transacciones 50
+\end{verbatim}}
+
+
+Basándonos en el ejemplo anterior, se conserva el poblado generado, pero se
+cambia el número total de transacciones a $1.000$ y el número de servidores a
+$5$. 
+\small{\begin{verbatim}
+tpcc$ ./generador -c -t 1000 -s 5 prueba
+Ejecutando ./generador - Generando carga para 
+        * 0 Almacenes
+        * 1000 Transacciones
+        * 5 Servidores
+        * Directorio de salida: prueba
+
+-> El directorio "prueba" existe, borrando carga.
+         * Borrando prueba_carga0.txt (0)
+         * Borrando prueba_carga1.txt (0)
+-> Generando Carga para el servidor 0 - transacciones 200
+-> Generando Carga para el servidor 1 - transacciones 200
+-> Generando Carga para el servidor 2 - transacciones 200
+-> Generando Carga para el servidor 3 - transacciones 200
+-> Generando Carga para el servidor 4 - transacciones 200
+\end{verbatim}}
+
+
+\subsection{Benchmark tpcc}
+Una vez que dispongamos de uno o más experimentos con los que trabajar, se podrá
+lanzar la aplicación de medida de rendimiento \texttt{tpcc}; para que, basándose
+en un experimento concreto, realice una ejecución de la lógica de negocio que
+implementa la aplicación \texttt{tpcc}. Después de la ejecución, obtendremos un
+fichero con los resultados de la medición.
+
+\subsubsection{Parámetros de ejecución}
+A diferencia del generador, esta aplicación no muestra ningún mensaje por
+pantalla  (ver apartado \ref{sec:detallada} en pag. \pageref{sec:detallada} para
+cambiar esto). El modo de ejecutar el benchmark es el siguiente:\\
+\texttt{./tpcc nombre\_experimento directorio\_experimento}
+
+Donde:
+\begin{itemize}
+\item \texttt{nombre\_experimento} Corresponde al prefijo que llevan todos los
+ficheros de un experimento.
+\item \texttt{directorio\_experimento} Lugar donde encontrar los ficheros del
+experimento.
+\end{itemize}
+
+Normalmente estos dos parámetros suelen ser iguales, ya que el generador cuando
+se le índice el nombre de un experimento, crea un directorio con ese nombre, y
+pone de prefijo a todos los ficheros el nombre del directorio.
+
+\subsubsection{Ejemplo de uso}
+Basándonos en los datos creados en el ejemplo anterior del generador, ejecutamos
+el benchmark tpcc.
+
+\small{\begin{verbatim}
+tpcc $ ./tpcc prueba prueba
+tpcc $
+\end{verbatim}}
+
+Para ver los resultados de la medición:
+\small{\begin{verbatim}
+tpcc $ cat prueba/prueba_estadisticas.txt 
+Estadisticas generadas: Sun Sep 18 18:46:42 2005
+
+Total transacciones: 1000 (1000 programadas)
+        * Nuevo Pedido 43.3000% (433)
+        * Pago 43.6000% (436)
+        * Estado de Pedido 4.5000% (45)
+        * Envío 4.1000% (41)
+        * Nivel de Existencias 4.5000% (45)
+Transacciones por segundo: 24.3902
+(1000 transacciones en 41 segundos)
+tpmC - 633.6585 (transacciones de nuevo pedido por minuto)
+\end{verbatim}}
+
+\section{Configuración detallada} \label{sec:detallada}
+Dentro de todo el sistema que da lugar a la implementación benchmark TPC-C, hay
+parámetros para variar el comportamiento del benchmark. Estos parámetros no están
+accesibles mediante opciones de la línea de órdenes, sino que se encuentran
+establecidos en definiciones dentro de los ficheros del código fuente. Veamos que
+parámetros de configuración hay dentro de cada fichero
+
+\subsection{Salida por pantalla}
+Como ya se comentó en la sección \ref{sec:debugh} (pag. \pageref{sec:debugh}),
+existe un sistema de ayuda a la detección de errores que informa en pantalla sobre lo que
+está sucediendo en cada momento. Para activar la salida por pantalla no hay más
+que compilar el modulo en el que deseemos activar dicha salida con la constante
+\texttt{DEBUG} definida. Esto se puede hacer de manera global o local.
+
+\subsubsection{De manera global}
+Modificando el fichero \texttt{Makefile} y cambiando la definición de la
+variable CFLAGS. Si normalmente esta variable esta definida como
+\texttt{CFLAGS=-g} , ahora pasaría ser \texttt{CFLAGS=-g -DDEBUG}.
+
+\subsubsection{De manera local}
+O por cada módulo independientemente. Para poder activar la salida en un módulo
+concreto, hay que definir en dicho módulo la opción \texttt{DEBUG} editándolo y
+añadiendo \texttt{\#define DEBUG} antes de la línea \texttt{\#include
+``debug.h''}.
+
+\subsubsection{Ejemplo de activación}
+Suele ser muy útil activar la salida por pantalla en el módulo
+\texttt{tpcc.parmacs.c},
+ya que así recibiremos información de los servidores que indican en que
+transacción están trabajando.
+
+Continuando con el ejemplo de \textit{prueba} anterior, activaremos la opción
+\texttt{DEBUG} en el fichero \texttt{tpcc.parmacs.c}, y teclearemos la orden
+\texttt{make} para recompilar dicho módulo.
+
+\small{\begin{verbatim}
+tpcc $ vim tpcc.parmacs.c 
+tpcc $ make
+m4 macros/c.m4.posix.mutex tpcc.parmacs.c > tpcc.c
+gcc -g -O0   -c -o tpcc.o tpcc.c
+En el fichero incluido de tpcc.c:8:
+debug.h:21:3: aviso: #warning ¡¡Has activado DEBUG para este modulo!!
+gcc -lpthread  tpcc.o arbolbmas.o cargador.o comparadores.o
+listaenlazada.o transacciones.o basicgen.o readwrite.o   -o tpcc
+rm tpcc.c
+\end{verbatim}}
+
+Al compilar con la opción \texttt{DEBUG} activada, el compilador nos dará un
+aviso; no supone ningún error, sólo es un aviso ya que en determinados módulos
+puede suponer un descenso importante en el rendimiento de la aplicación. Si
+ejecutamos ahora el benchmark, obtendremos la siguiente salida.
+
+\small{\begin{verbatim}
+ $ ./tpcc prueba prueba
+[tpcc] Inicio - Nombre base: "prueba/prueba_"
+[tpcc] Inicio - Poblando la base de datos, esto llevará un buen rato
+[tpcc] Numero servidores:5 Numero transacciones:1000
+[0][Servidor] Índice: 0
+[0][Servidor] Fichero entrada: "prueba/prueba_carga0.txt"
+[1][Servidor] Índice: 1
+[1][Servidor] Fichero entrada: "prueba/prueba_carga1.txt"
+[2][Servidor] Índice: 2
+[2][Servidor] Fichero entrada: "prueba/prueba_carga2.txt"
+[3][Servidor] Índice: 3
+[3][Servidor] Fichero entrada: "prueba/prueba_carga3.txt"
+[4][Servidor] Índice: 4
+[4][Servidor] Fichero entrada: "prueba/prueba_carga4.txt"
+[4][Servidor] Comenzando (Barrera de inicio superada)
+[4][Servidor] Transacción de Estado de pedido
+[4][Servidor] Transacción de Nuevo pedido
+...
+...
+...
+[3][Servidor] Trabajo finalizado
+[3][Servidor] Total transacciones: 200
+        * Nuevo Pedido 43.5000% (87)
+        * Pago 43.0000% (86)
+        * Estado de Pedido 4.5000% (9)
+        * Envío 4.5000% (9)
+        * Nivel de Existencias 4.5000% (9)
+[1][Servidor] Transacción de Pago
+[1][Servidor] Transacción de Estado de pedido
+[1][Servidor] Transacción de Nuevo pedido
+[1][Servidor] Transacción de Pago
+[1][Servidor] Transacción de Nuevo pedido
+[1][Servidor] Transacción de Nuevo pedido
+[1][Servidor] Trabajo finalizado
+[1][Servidor] Total transacciones: 200
+        * Nuevo Pedido 43.0000% (86)
+        * Pago 44.0000% (88)
+        * Estado de Pedido 4.5000% (9)
+        * Envío 4.0000% (8)
+        * Nivel de Existencias 4.5000% (9)
+[tpcc] Limpiando almacén de datos
+[limpiar] Destruyendo medio de almacenamiento número 0
+[limpiar] Destruyendo medio de almacenamiento número 1
+[limpiar] Destruyendo medio de almacenamiento número 2
+[limpiar] Destruyendo medio de almacenamiento número 3
+[limpiar] Destruyendo medio de almacenamiento número 4
+[limpiar] Destruyendo medio de almacenamiento número 5
+[limpiar] Destruyendo medio de almacenamiento número 6
+[limpiar] Destruyendo medio de almacenamiento número 7
+[limpiar] Destruyendo medio de almacenamiento número 8
+[tpcc] Limpiando memoria compartida
+\end{verbatim}}
+
+Como se puede observar, con solo activar esta opción al más alto nivel, la
+cantidad de datos que se obtiene es muy alta.
+
+\subsection{Opciones de la aplicación tpcc}
+Aparte de la opción \texttt{DEBUG} existen otras dos constantes que alteran su
+funcionamiento. Estas constantes hay que definirlas en el fichero
+\texttt{tpcc.parmacs.c}.
+
+\begin{itemize}
+\item \texttt{\_\_ESTADISTICAS\_\_} Por defecto activada. Su activación controla
+la generación de las estadísticas: si no está definida, no se generan
+estadísticas del rendimiento (fichero de estadísticas).
+\item \texttt{\_\_LIMPIAR\_\_} Por defecto activada. En los sistemas donde
+PARMACS permita liberar memoria mediante G\_FREE, al activar esta opción se
+indica que la memoria de todas las estructuras de almacenamiento sea liberada.
+Esta opción también es útil para comprobar si existe alguna corrupción dentro
+las estructuras, ya que al ordenar su destrucción si existen errores internos,
+no se producirán errores en la función de limpieza.
+\end{itemize}
+
+\subsection{Opciones del generador}
+En el fichero \texttt{generador.h} se pueden alterar los nombres de los ficheros
+de salida para el poblado y las constantes, y también se puede alterar la
+cardinalidad de los diferentes elementos del poblado.
+
+Para los ficheros tenemos las siguientes constantes:
+\begin{itemize}
+\item \texttt{FICHERO\_PRODUCTOS} Por defecto: ``productos.txt''.
+\item \texttt{FICHERO\_ALMACENES}     Por defecto: ``almacenes.txt''.
+\item \texttt{FICHERO\_EXISTENCIAS}   Por defecto: ``existencias.txt''.
+\item \texttt{FICHERO\_ZONAS}         Por defecto: ``zonas.txt''.
+\item \texttt{FICHERO\_CLIENTES}      Por defecto: ``clientes.txt''.
+\item \texttt{FICHERO\_HISTORICO}     Por defecto: ``historico.txt''.
+\item \texttt{FICHERO\_PEDIDOS}       Por defecto: ``pedidos.txt''.
+\item \texttt{FICHERO\_LINEASPEDIDO}  Por defecto: ``lineaspedido.txt''.
+\item \texttt{FICHERO\_NUEVOSPEDIDOS} Por defecto: ``nuevospedidos.txt''.
+\item \texttt{FICHERO\_CONSTANTES}    Por defecto: ``constantes.txt''.
+\end{itemize}
+
+Y para las cardinalidades del poblado:
+\begin{itemize}
+\item \texttt{CARD\_ALMACEN     } Por defecto: $1$
+\item \texttt{CARD\_ZONA        } Por defecto: $10$
+\item \texttt{CARD\_CLIENTE     } Por defecto: $30.000$
+\item \texttt{CARD\_PEDIDO      } Por defecto: \texttt{CARD\_CLIENTE}
+\item \texttt{CARD\_NUEVOPEDIDO } Por defecto: \texttt{CARD\_CLIENTE}*0.3
+\item \texttt{CARD\_PRODUCTO    } Por defecto: $100.000$
+\item \texttt{CARD\_EXISTENCIAS } Por defecto: \texttt{CARD\_PRODUCTO}
+\item \texttt{CARD\_TRANSACCION } Por defecto: $100$
+\item \texttt{CARD\_SERVIDOR    } Por defecto: $1$
+\end{itemize}
+
+\subsection{Opciones del árbol B+}
+Como ya se comentó el árbol B+ se compone de nodos internos y hoja, y dichos
+nodos tienen una cierta capacidad de claves, y también un límite mínimo de
+claves. Se pueden alterar estos parámetros en el fichero \texttt{arbolbmas.h}.
+\begin{itemize}
+\item \texttt{NODE\_SIZE} Capacidad de claves del nodo. En cuanto a los enlaces,
+un nodo hoja tendrá el mismo número de enlaces que de claves y un nodo interno
+tendrá un enlace más. 
+\item \texttt{NODE\_SIZE\_MIN} Límite de capacidad mínima en claves de un nodo.
+\end{itemize}
+
+Y para estos tamaños se deben de cumplir 3 reglas:
+\begin{itemize}
+\item El tamaño mínimo de un nodo es $3$.
+\item El límite de capacidad mínimo de un nodo es como poco $1$.
+\item Entre el tamaño máximo y mínimo se tiene que cumplir la fórmula: 
+$min \leq\ (max)/2$
+\end{itemize}
+

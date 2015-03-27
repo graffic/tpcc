@@ -1,0 +1,1451 @@
+\section{Subsistema de almacenamiento}
+\subsection{Fundamentos de listas enlazadas}
+Una lista enlazada es una colección de elementos o nodos, en donde cada nodo
+contiene unos datos y un enlace al nodo siguiente. La lista enlazada es una de
+las estructuras dinámicas más simples que implementa de manera versátil una
+lista dinámica de elementos donde continuamente se añaden o se borran elementos.
+
+Un nodo de la lista enlazada se define en la figura \ref{fig:nodolista}
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=3cm]{cap4/nodo-le.pdf}
+\end{center}
+\caption{Nodo de una lista enlazada}
+\label{fig:nodolista}
+\end{figure}
+
+De tal manera que cuando se enlazan varios nodos obtenemos la estructura de la
+figura \ref{fig:listaenlazada}
+
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=\textwidth]{cap4/listaenlazada.pdf}
+\end{center}
+\caption{Estructura de lista enlazada}
+\label{fig:listaenlazada}
+\end{figure}
+
+Dicha estructura no tiene porqué estar ordenada, aunque a veces encontraremos
+modificaciones como: que los datos tengan un orden en la lista, o exista un
+puntero al último nodo de la lista
+\subsubsection{Operación de búsqueda}
+La operación de búsqueda en las listas enlazadas es una de las más costosas,
+debido a que la búsqueda es secuencial y de orden n, es decir, hay que recorrer
+todos los nodos para encontrar el que buscamos; en el peor de los casos, esté
+ordenada o no, tengamos acceso desde el final o no, si buscamos un dato que no
+se encuentra en la lista acabaremos recorriendo todos los nodos.
+
+El procedimiento es el siguiente:
+\begin{enumerate}
+\item Colocarse en el primer nodo de la lista.
+\item Comprobar si los datos son los que buscamos.
+\item Si lo son, hemos terminado.
+\item Si no lo son, colocarse en el siguiente nodo; si el nodo no es final
+volver al segundo punto.
+\item Si el nodo siguiente es el final, hemos terminado de manera no
+satisfactoria.
+\end{enumerate}
+
+\subsubsection{Operación de Inserción}
+Una de las ventajas de las listas enlazadas es que no hace falta desplazar los
+elementos cuando se insertan (ni cuando se borran). Para insertar un nuevo valor
+en la lista enlazada existen dos maneras: al principio de la lista, tras algún
+valor de la lista (lista ordenada).
+
+Inserción al principio de la lista:
+\begin{enumerate}
+\item Obtener un nuevo nodo y almacenar el valor en la parte datos de dicho
+nodo.
+\item En este nuevo nodos, en la parte del puntero al nodo siguiente, almacenar
+el valor de la variable \textit{puntero al primer nodo}.
+\item Actualizar la variable \textit{puntero al primer nodo} con la dirección
+del nuevo nodo creado.
+\end{enumerate}
+
+Inserción tras un valor de la lista:
+\begin{enumerate}
+\item Obtener un nuevo nodo y almacenar el valor en la parte datos de dicho 
+nodo.
+\item Buscar entre que dos nodos insertar, dichos nodos los llamaremos, anterior
+y siguiente.
+\item Del nodo anterior, actualizar el valor de su puntero al nodo siguiente a
+la dirección del nuevo nodo.
+\item En el nuevo nodo, actualizar el valor de su puntero al nodo siguiente a la
+dirección del nodo siguiente.
+\item Si siguiente es el primer nodo, no hay anterior, y procederemos como
+cuando insertamos al principio de la lista.
+\item Si anterior es el último nodo, no existe siguiente, por lo que en el nuevo
+nodo, su puntero al siguiente nodo apuntará a FIN.
+\end{enumerate}
+
+\subsubsection{Operación de borrado}
+En este caso también tenemos que considerar dos alternativas: borrar el primero,
+o borrar un nodo intermedio.
+
+Borrar el primer nodo:
+\begin{enumerate}
+\item Hacer que la variable \textit{puntero al primer nodo} apunte al nodo
+siguiente del nodo apuntado originalmente.
+\item Destruir el nodo desenlazado.
+\end{enumerate}
+
+Borrar un nodo intermedio:
+\begin{enumerate}
+\item Encontrar el nodo a borrar, en dicha búsqueda habrá dos nodos: el anterior
+al nodo que queremos borrar, y el siguiente al nodo que queremos borrar.
+\item Actualizar el puntero al nodo siguiente del nodo anterior al que queremos
+borrar, y ponerle el valor de la dirección del nodo siguiente al que queremos
+borrar.
+\item Destruir el nodo desenlazado.
+\item Si el nodo que queremos borrar es el primero, actuaremos como en el caso
+de borrar el primer nodo.
+\item Si el nodo que queremos borrar es el último, haremos que en el nodo
+anterior al que queremos borrar, su puntero al nodo siguiente, apunte a FIN.
+\end{enumerate}
+
+\subsection{Sincronización de la lista enlazada}
+Cuando se habla de sincronizar se habla de que varios procesos o hilos de
+ejecución puedan interactuar a la vez y sin interferencias con la misma
+estructura de datos. El hecho de no controlar que muchos procesos accedan a la
+estructura, no ocasionaría problemas si todos leen la estructura, pero en el
+momento que uno o más procesos intenten modificarla, pueden existir problemas.
+
+Por ejemplo, si dos procesos A y B, quieren añadir al final un nodo a través de un
+puntero de final de cola puede ocurrir que desaparezca uno de los nodos
+insertados.
+
+\begin{table}
+\begin{tabularx}{\linewidth}{|X|X|}
+\hline
+\textbf{Proceso A} & \textbf{Proceso B} \\
+\hline
+Obtiene el valor del puntero al último nodo & \\
+&Obtiene el valor del puntero al último nodo \\
+Accede al último nodo y actualiza su siguiente nodo al nuevo nodo de A & \\
+&Accede al último nodo y actualiza su siguiente nodo al nuevo nodo de B\\
+&Actualiza el puntero al último nodo con el nuevo nodo de B \\
+Actualiza el puntero al último nodo con el nuevo nodo de A & \\
+\hline
+\end{tabularx}
+\caption{Ejemplo de cómo corromper una lista enlazada con dos procesos}
+\label{tab:le-corrupta}
+\end{table}
+
+Como se puede observar en el cuadro \ref{tab:le-corrupta}, nuestra estructura de
+datos ha acabado corrupta ya que, el penúltimo nodo apunta al nodo añadido por
+B, pero el puntero del último nodo apunta al nodo añadido por A; esto hace que
+la estructura quede inservible, y si se ejecutan más operaciones sobre la misma
+el resultado puede ser inesperado y no el deseado.
+
+\subsubsection{Modelo de sincronización}
+En el benchmark TPC-C la única tabla que utiliza la lista enlazada es la de
+\textit{histórico}, y no hace más que añadir nodos al final a través de un
+puntero que apunta al último nodo. Para evitar problemas como los anteriores se
+ha puesto un cerrojo a las operaciones sobre la lista de tal manera que: no
+puede ejecutarse ninguna operación sobre la lista si una anterior no ha
+terminado. Al código que se ejecuta entre que se adquiere y se libera un bloqueo
+de este tipo se le llama \textit{sección crítica}
+
+En este caso el ejemplo anterior quedaría como se puede observar en el cuadro \ref{tab:le-correcta}.
+\begin{table}
+\begin{tabularx}{\linewidth}{|X|X|}
+\hline
+\textbf{Proceso A} & \textbf{Proceso B} \\
+\hline
+Obtiene el cerrojo de la lista enlazada & \\
+Obtiene el valor del puntero al último nodo & \\
+&Intenta obtener el cerrojo de la lista enlazada, pero como ya está
+asignado se queda a la espera. \\
+Accede al último nodo y actualiza su siguiente nodo al nuevo nodo de A & \\
+Actualiza el puntero al último nodo con el nuevo nodo de A & \\
+Libera el cerrojo & \\
+&Despierta del bloqueo ya que A lo ha liberado, y obtiene el cerrojo \\
+&Accede al último nodo y actualiza su siguiente nodo al nuevo nodo de B\\
+&Actualiza el puntero al último nodo con el nuevo nodo de B \\
+&Libera el cerrojo \\
+\hline
+\end{tabularx}
+\caption{Ejemplo de inserción ordenada con dos procesos}
+\label{tab:le-correcta}
+\end{table}
+
+Como se puede ver, ahora B accede al puntero del último nodo real, y lo que se
+ha conseguido con este cerrojo es secuenciar las operaciones sobre la lista
+enlazada.
+
+\subsection{Implementación de la lista enlazada}
+Esta lista enlazada implementa inserción por el final y borrado por el
+principio, aunque en el benchmark TPC-c no se usa el borrado por el principio.
+También incluye registros genéricos de tamaño N, que se explicarán más adelante.
+
+\subsubsection{Estructuras y tipos de datos}
+Las estructuras y tipos de datos utilizadas, están declaradas en 
+\textit{listaenlazada.parmacs.h}.
+\paragraph{$\triangleright$ struct struct\_LENodo}
+Estructura para manejar los enlaces al nodo siguiente. Esto es lo que se añadirá
+a los registros genéricos que se quieran insertar en la lista. Contenido:
+\begin{itemize}
+\item \texttt{struct struct\_LENodo *siguiente;} Puntero al siguiente elemento
+de la lista. Con valor NULL cuando no hay más nodos en la lista.
+\end{itemize}
+
+\paragraph{$\triangleright$ struct struct\_ListaEnlazada}
+Almacena la información necesaria para manejar la lista. Contenido:
+\begin{itemize}
+\item \texttt{struct struct\_LENodo *principio;} Puntero al primer nodo de la
+lista, o NULL cuando está vacía.
+\item \texttt{struct struct\_LENodo *fin;} Puntero al último nodo de la lista, o
+NULL cuando está vacía.
+\item \texttt{int regsize;} Tamaño del registro genérico usado
+\item \texttt{LOCKDEC(bloqueo);} Cerrojo de la lista.
+\end{itemize}
+
+\paragraph{$\triangleright$ LENodo}
+Se define el tipo de dato LENodo de la siguiente manera:\\
+\texttt{typedef struct struct\_LENodo LENodo;}
+\paragraph{$\triangleright$ ListaEnlazada}
+Se define el tipo de dato ListaEnlazada de la siguiente manera:\\
+\texttt{typedef struct struct\_ListaEnlazada ListaEnlazada;}
+
+
+\subsubsection{Interfaz de uso}
+Para utilizar la implementación de la lista enlazada, se han dispuesto las
+siguientes funciones declaradas en \texttt{listaenlazada.parmacs.h}.
+\paragraph{$\triangleright$ le\_nueva}
+\begin{itemize}
+\item Declaración: \texttt{ListaEnlazada *le\_nueva(int regsize)}
+\item Descripción: Inicializa un identificador de lista enlazada. 
+	\begin{itemize} 
+	\item Se inicializan los punteros a null
+	\item Se almacena el tamaño del registro.
+	\item Se inicializa el cerrojo.
+	\end{itemize}
+\item Parámetros:
+	\begin{itemize}
+	\item \texttt{int regsize} (entrada): Tamaño del registro de datos
+	genérico con el que trabajar.
+	\end{itemize}
+\item Devuelve: un puntero a la estructura de lista enlazada, que estará 
+inicializada como vacía.
+\end{itemize}
+
+\paragraph{$\triangleright$ le\_insertar\_final}
+\begin{itemize}
+\item Declaración: \texttt{void le\_insertar\_final(ListaEnlazada *lista,void
+*registro)}
+\item Descripción: (función sincronizada) Inserta al final de la lista.
+	\begin{itemize}
+	\item Reserva memoria para el registro y la estructura de nodo.
+    	\item Actualiza los punteros para colocar el nodo.
+    	\item Copia los datos del nodo.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{ListaEnlazada *lista} (entrada): Lista enlazada sobre la
+	que operar.
+        \item \texttt{void *registro} (entrada): Puntero al registro que
+	insertar en la lista.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ le\_borrar\_primero}
+\begin{itemize}
+\item Declaración: \texttt{int le\_borrar\_primero(ListaEnlazada *lista, void
+*registro)}
+\item Descripción: (función sincronizada) Borra el primer elemento de la lista y lo devuelve.
+	\begin{itemize}
+    	\item Primero comprueba si la lista está vacía.
+    	\item En caso de no estarlo, copia los datos al registro.
+    	\item Y luego actualiza los punteros internos.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{ListaEnlazada *lista} (entrada): Lista enlazada sobre la
+	que operar.
+        \item \texttt{void *registro} (salida): Lugar donde depositar el
+	registro borrado.
+        \end{itemize}
+\item Devuelve: Un entero indicando el resultado de la operación.
+	\begin{itemize}
+	\item \texttt{OP\_OK} Operación Correcta.
+	\item \texttt{OP\_NODATA} Sin datos debido a que la lista estaba vacía.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ le\_destruir}
+\begin{itemize}
+\item Declaración: \texttt{void le\_destruir(ListaEnlazada *lista)}
+\item Descripción: Va borrando todos los nodos uno a uno.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{ListaEnlazada *lista} (entrada): Lista enlazada sobre la
+	que operar.
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Peculiaridades}
+La primera peculiaridad en esta lista y que se aplicará también en el árbol B+,
+es que se habla de \textit{registros genéricos}. Un registro genérico es aquel
+que puede albergar cualquier tipo de dato, por tanto la lista no tiene en cuenta
+el contenido de los datos para su funcionamiento interno.
+
+Si bien se ha definido como un nodo de la lista la estructura struct\_LENodo,
+que sólo tiene un puntero al nodo siguiente. A la hora de reservar memoria se
+reserva espacio para
+\begin{itemize}
+\item El puntero al nodo siguiente (lo que es la estructura LENodo).
+\item Los datos (el tamaño está indicado por regsize).
+\end{itemize}
+
+Por lo que tendremos una asignación como la siguiente (extraída de la función
+le\_insertar\_final):
+\texttt{newrecord=G\_MALLOC(lista->regsize+sizeof(LENodo));}
+
+A la hora de obtener los datos de un registro cualquiera, no tenemos más que,
+dado el puntero del registro, desplazarnos el tamaño del puntero y leer a partir
+de ahí: \texttt{memcpy(registro,tmp+1,lista->regsize);}
+
+El segundo punto interesante, y que también se aplicará en el árbol B+, es que a
+la hora de añadir datos, aunque se le pase una zona de memoria con los datos, la
+lista enlazada reserva una zona de memoria compartida para guardar ese dato, con
+lo que queda accesible por los demás procesos.
+
+\subsection{Fundamentos de árboles B+}
+Ya se ha hablado (pag. \pageref{sec:arbolbmasbasico}) sobre la estructura de un
+árbol B+; si decimos que un árbol B+ es de orden $p$ decimos que:
+\begin{itemize}
+\item Si el nodo es interno tiene $p-1$ claves y $p$ enlaces.
+\item Si el nodo es hoja, tiene $p-1$ claves y enlaces.
+\end{itemize}
+
+Los nodos de un árbol B+ siguen la estructura de la figura \ref{fig:abm-nodos}
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=8cm]{cap4/abm-nodos.pdf}
+\end{center}
+\caption{Nodos de un árbol B+}
+\label{fig:abm-nodos}
+\end{figure}
+
+La estructura que sirva para manejar un árbol B+ al menos tendrá un puntero al
+nodo raíz, y un puntero al primer nodo hoja, ya que los nodos hoja están unidos
+formando una lista enlazada, que es de gran utilizad cuando se realizan
+búsquedas no indexadas.
+
+Aunque se han estudiado muchas mejoras \cite{672375}, \cite{vilho04}, sobre todo
+en lo referente a la relación: eficiencia de caché respecto al acceso a los
+nodos, en este análisis y en esta implementación sólo se utilizan los fundamentos
+básicos de arboles B+.
+
+\subsubsection{Búsqueda indexada}
+La búsqueda a través de un campo clave es el punto fuerte de los arboles B+,
+entre millones de entradas se puede acceder a aquella que andamos buscando en
+cuestión de milésimas de segundo. Para entender las razones de esta afirmación,
+se va explicar un ejemplo.
+
+Supongamos que tenemos un árbol B+ de orden 51, es decir, aquel árbol cuyos
+nodos internos tienen 51 enlaces y 50 claves, y cuyos nodos hoja tienen 50
+enlaces y 50 claves. Llamaremos altura del árbol, a los nodos que hay que
+recorrer desde el raíz, hasta llegar a un nodo hoja, ambos inclusive. La
+cantidad de datos que podemos almacenar es la siguiente:
+\begin{itemize}
+\item Altura 1: 50 registros. Sólo existe un nodo, el raíz que es a su vez nodo
+hoja.
+\item Altura 2: $51*50=2.550$ registros. Del nodo raíz parten 51 enlaces a nodos
+hoja que a su vez pueden almacenar 50 registros.
+\item Altura 3: $51*51*50=130.050$ registros. Del nodo raíz parten 51 enlaces a nodos
+internos, que tienen 51 enlaces a nodos hoja; estos últimos albergan 50 enlaces
+a registros.
+\item Altura 4: $51*51*51*50=6.632.550$ registros. Ya tenemos varios millones de
+registros con solo 4 alturas.  
+\end{itemize}
+
+Nos quedaremos con el árbol B+ de orden 51 y de 4 alturas, se supone que está
+totalmente lleno y que por lo tanto podremos acceder a los más de 6 millones de
+registros. La operación de búsqueda a partir de una clave $K$ es la siguiente:
+
+\begin{enumerate}
+\item Se accede al nodo raíz y se marca como nodo actual.
+\item Dado que las claves del nodo actual están ordenadas, se busca la clave $K$
+entre todas las claves del nodo actual mediante una \textit{búsqueda binaria}, 
+si no se encuentra, se dice la posición
+aproximada, es decir, entre que dos claves se encuentra.
+\item Entre la clave $K_{i-1}$ y la clave $K_i$ se encuentra el enlace $L_i$
+que nos lleva al nodo cuyas claves son: mayores que $K_{i-1}$ y menores o
+iguales que $K_i$. (fig. \ref{fig:abm-busqueda1})
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=3cm]{cap4/abm-busqueda1.pdf}
+\end{center}
+\caption{Estructura de un nodo interno}
+\label{fig:abm-busqueda1}
+\end{figure}
+\item La posición aproximada es aquella $i$ tal que: $K_{i-1} < K \leq K_i$.
+\item Accedemos al nodo apuntado por la posición $i$ ($L_i$), y lo llamamos nodo
+actual.
+\item Si el nodo es hoja, repetimos desde el punto dos y accederemos al dato.
+\item Si el nodo es interno, volvemos al punto 2.
+\end{enumerate}
+
+Para recorrer los 4 niveles del nodo se han hecho 4 búsquedas binarias entre 50
+elementos, que obviamente son mucho menos costosas que una búsqueda binaria entre
+6 millones de elementos. De ahí que acceder a un registro entre varios millones
+sólo conlleve unos pocos milisegundos.
+
+\subsubsection{Búsqueda no indexada}
+Este es el punto débil de los árboles B+, si no se posee un campo clave por el
+cual buscar un nodo en el árbol, hay que recorrer todos los nodos. Aun así, el
+árbol B+ presenta cierta facilidad para realizar esa tarea; debido a que todos
+sus nodos hoja están enlazados entre si, y solo los nodos hoja contienen enlaces
+a los datos, obtenemos una \textit{lista simplemente enlazada} con los nodos
+hoja, que podremos recorrer para encontrar el dato buscado.
+
+Utilizando el ejemplo anterior de un árbol B+ de orden 51 con 4 niveles, y
+suponiendo el peor caso, y es que el nodo buscado esté al final de la lista
+enlazada. Dado que no se está buscando por clave y por lo tanto no se puede utilizar la búsqueda
+binaria en cada nodo, se tendrían que realizar más de 6 millones de
+comparaciones antes de llegar al nodo final.
+
+El algoritmo de búsqueda sería el siguiente:
+\begin{enumerate}
+\item Se accede al primer nodo hoja y se le nombra: nodo actual.
+\item Se busca uno a uno entre los registros apuntados por el nodo actual el
+dato que buscamos.
+\item Si se encuentra, se finaliza la búsqueda.
+\item Si no se encuentra, se utiliza el puntero al nodo siguiente, y hacemos del
+nodo siguiente el nodo actual; por último volvemos al punto 2.
+\end{enumerate}
+
+\subsubsection{Inserción}
+La inserción de un registro extra en un árbol B+ puede ser tan costosa como
+muy simple; no es que sea una de las operaciones más peligrosas a la hora de
+manejar esta estructura pero sin conviene hacerse metódicamente para evitar
+errores.
+
+Toda inserción en un árbol B+ comienza con una búsqueda del nodo hoja donde
+debiera encontrarse la clave del registro que queremos insertar. Si localizado
+el nodo hoja, este tiene espacio suficiente para albergar el nuevo registro, el
+algoritmo es el siguiente.
+\begin{enumerate}
+\item Lo primero es realizar una búsqueda binaria para conocer en que posición
+debiera insertarse el registro actual. Utilizando la función de búsqueda binaria
+aproximada que se utilizó en la búsqueda indexada, obtenemos dicha posición.
+\item Si el nodo admite claves duplicadas y la clave existe, continuamos
+normalmente; pero si no las admite y la clave existe, se anula la inserción.
+\item Si la posición de inserción es $i$ en el nodo hoja, desplazamos todos los
+pares de: $(K_j,Lregistro_j)$ una posición a la derecha desde
+$j=ocupados$ (que simboliza la cantidad actual de enlaces ocupados en el nodo)
+hasta $j=i$, lo hacemos al revés (de derecha a izquierda) para que la operación $K_{j+1}=K_j,
+Lregistro_{j+1}=Lregistro_j$ no sobreescriba datos existentes.
+\item Por último, insertamos nuestro nuevo registro copiando la clave en $K_i$ y
+actualizando el puntero al registro $Lregistro_i=NuevoRegistro$.
+\end{enumerate}
+
+Es una operación más complicada cuando el nodo hoja está lleno, en ese caso hay
+que dividir el nodo hoja, para obtener dos nodos hoja llenos hasta la mitad, y
+así poder insertar en uno de los dos nuevos nodos creados. La división de un
+nodo hoja se realiza de esta manera:
+\begin{enumerate}
+\item Dado un nodo hoja lleno, se busca \textit{la mitad} de dicho nodo.
+\item La mitad de dicho nodo se indica como $i$. Se crea un nuevo nodo vacío.
+\item Se mueven los datos: de $i$ hasta el final del nodo al nuevo nodo creado.
+Tenemos dos nodos: \textit{izquierdo} (de $0$ a $i-1$) y \textit{derecho} (de
+$i$ hasta el final).
+\item Al tener un nuevo nodo hoja, hace falta enlazarlo con el nodo anterior,
+que es un nodo interno. Recordemos que los nodos internos tienen claves para
+indicar que camino tomar, así que al añadir un nuevo enlace en el nodo superior,
+necesitaremos una nueva clave para guiar las búsquedas.
+\item Dada una clave $K_j$ todos aquellos valores menores o iguales se
+encuentran en el enlace $L_j$ y los mayores en el enlace $L_{j+1}$
+\item Utilizamos la última clave del nodo izquierdo como clave de unión.
+\end{enumerate}
+
+Se ha dejado el algoritmo a la mitad para resumir los pasos hechos hasta el
+momento: cuando un nodo hoja esta lleno, se divide por la mitad en dos nodos:
+izquierdo y derecho, siendo la ultima clave del izquierdo la clave de unión.
+Ahora hay que introducir dicha clave en el nodo superior, que es un nodo
+interno.
+
+\begin{enumerate}
+\item Nos posicionamos en el nodo interno superior al nodo hoja, y buscamos la
+posición $i$ por la que se accede al nodo hoja.
+\item Como hemos dividido anteriormente, desde esa posición $i$ sólo se accede a
+la mitad de los valores por lo que, idealmente, debiéramos colocar la clave de
+unión como $K_i$ ya que en el nodo izquierdo están los valores menores o iguales
+que $K_i$.
+\item Para poder realizar esto movemos todas las claves desde $K_ultima$ a $K_i$
+un lugar a la derecha: $K_{j+1}=K_j$.
+\item Realizamos lo mismo con los enlaces pero desde $L_ultimo$ a $L_{i+1}$.
+\item Al realizar este desplazamiento de enlaces dejamos un hueco para insertar
+un enlace al nodo derecho (fig. \ref{fig:abm-insertar1}).
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=\linewidth]{cap4/abm-insertar1.pdf}
+\end{center}
+\caption{Inserción de una clave de unión en un nodo interno}
+\label{fig:abm-insertar1}
+\end{figure}
+\end{enumerate}
+
+Una vez hecho esto, no habíamos insertado aun el registro en el nodo hoja, y al
+dividir el nodo hoja, sólo nos queda seleccionar si va en el izquierdo o en el
+derecho y realizar una inserción normal en el nodo hoja adecuado. No olvidar
+completar la lista enlazada, el nodo izquierdo apunta al nuevo nodo derecho, y
+el nuevo nodo derecho apunta donde antes apuntaba el viejo nodo izquierdo, es
+decir, una inserción entre medias de una lista simplemente enlazada.
+
+Por último puede ocurrir un problema, y es que al ir a insertar en el nodo
+interno superior, este esté lleno. La técnica a aplicar es la misma: dividir el
+nodo interno, obtener una clave de unión e insertar la clave de unión en el nodo
+interno superior; pero hay que tener cuidado con ciertos detalles.
+\begin{enumerate}
+\item Los nodos internos tienen distinto número de claves que de enlaces, y su
+disposición es como la de \textit{varios triángulos juntos}, siendo el vértice
+superior la clave y los dos inferiores los enlaces. A la hora de dividir un nodo
+interno por la mitad, el triángulo se dividirá en dos, y la clave del vértice
+superior desaparecerá del nodo y pasará a ser la clave de unión.
+\item Si dividimos el nodo raíz, hay que insertar un nodo interno nuevo y con
+sólo dos enlaces y una clave: la clave de unión, y los enlaces a las dos partes
+del nodo dividido.
+\end{enumerate}
+
+Para la tarea de inserción, muchas veces es útil tener punteros de navegación en
+los nodos: nodo anterior, nodo siguiente, etc. Estos punteros pueden estar en el
+propio nodo, o los podemos ir almacenando según vamos descendiendo en el árbol. 
+
+\subsubsection{Borrado}
+Al igual que con la inserción el borrado es una operación que puede ser sencilla
+simplemente borrando una entrada en un nodo hoja; o bastante compleja,
+necesitando borrar varias entradas en varios nodos internos. Se va a explicar
+igual que se indicó la inserción, comenzando por un borrado simple en un nodo
+hoja; el algoritmo es el siguiente:
+
+\begin{enumerate}
+\item Dada una clave $K$, buscar el nodo hoja que debiera contener la clave $K$.
+\item Si no se encuentra, hemos terminado.
+\item Si la encontramos, estará en la posición $i$ del nodo hoja.
+\item Desplazar los pares de clave y enlace $(K_j,L_j)$ desde $i+1$ hasta
+$ultimo$, una unidad a la izquierda: $K_j=K_{j+1}$
+\item Liberar la memoria del registro asociado a la vieja clave $K_i$.
+\end{enumerate}
+
+En este momento puede ocurrir que el nodo rebase el límite de tamaño mínimo. Si
+bien se había dicho que un nodo como mínimo puede tener $(maximo/2)$ claves; es
+muy normal experimentar con dicho límite para optimizar el funcionamiento del
+árbol en un entorno concreto.
+
+Se supondrá que el nodo ha rebasado su límite de tamaño mínimo y hay que hacer
+\textit{algo} para solucionarlo. Ese algo consiste en dos soluciones:
+\begin{itemize}
+\item \textit{Balancear}: Dados dos nodos, se balancea su contenido entre los
+dos, terminando ambos nodos con el mismo número de claves y enlaces ocupados.
+\item \textit{Fusionar}: Dados dos nodos, se fusiona uno con otro,
+desapareciendo el primero, y pasando su contenido a formar parte del segundo.
+\end{itemize}
+
+En este caso hay que tener \textit{anotados} los nodos izquierdo y derecho del
+nodo hoja donde nos encontramos, así como si el padre de dichos nodos es el
+mismo que el del nodo actual. Hay que tener esto en cuenta ya que a la hora de
+balancear dos nodos, o de fusionar dos nodos, sólo se balancean o fusionan
+aquellos nodos que tengan el mismo padre, para así solo alterar un enlace y una
+clave de dicho padre.
+
+Las situaciones con las que nos podemos encontrar y la acción a tomar son las
+indicadas en el cuadro \ref{tab:abm-borrar}.
+
+\begin{table}
+\begin{tabularx}{\linewidth}{|X|X|X|}
+\hline
+\bf Vecino izquierdo & \bf Vecino derecho& \bf Acción \\
+\hline
+\hline
+No esta lleno    & No Hay	 & Fusión del actual con el izquierdo\\
+\hline
+Lleno            & No Hay        & Balancear el actual con el izquierdo\\
+\hline
+No Hay&	No esta lleno	&Fusión del actual con el derecho\\
+\hline
+No Hay& Lleno&	Balancear el actual con el izquierdo\\
+\hline
+Otro padre distinto al del nodo actual&	Mismo padre Y puede admitir&
+Fusión del actual con el derecho\\
+\hline
+Otro padre distinto al del nodo actual&	Mismo padre Y esta lleno&
+Balancear el actual con el derecho\\
+\hline
+Mismo padre Y puede admitir&Otro padre distinto al del nodo actual&
+Fusión del actual con el izquierdo\\
+\hline
+Mismo padre Y esta lleno & Otro padre distinto al del nodo actual&
+Balancear el actual con el izquierdo\\
+\hline
+Mismo padre Y puede admitir&Mismo padre Y puede admitir	&Fusión
+del actual con el derecho (podría ser izquierdo también)\\
+\hline
+Mismo padre Y lleno	&Mismo padre Y puede admitir	&Balancear el
+actual y el izquierdo\\
+\hline
+Mismo padre Y puede admitir&Mismo padre Y lleno	&Balancear el actual con el derecho\\
+\hline
+\end{tabularx}
+\caption{Resumen de acciones de borrado}
+\label{tab:abm-borrar}
+\end{table}
+
+El algoritmo de fusión es el siguiente:
+\begin{enumerate}
+\item Dados dos nodos izquierdo y derecho, se fusiona siempre hacia la
+izquierda.
+\item Se mueven todos los datos del nodo derecho al izquierdo.
+\item Se elimina el nodo izquierdo.
+\item Se anota que han ocurrido cambios para más tarde borrar el enlace del nodo
+superior al nodo izquierdo que ya no existe.
+\end{enumerate}
+
+Y para el balanceo:
+\begin{enumerate}
+\item Dados dos nodos: izquierdo y derecho, se comprueba la ocupación de cada
+uno.
+\item La suma de los dos tamaños entre 2 es el nuevo tamaño de ambos nodos.
+\item La cantidad a desplazar es el tamaño del nodo más grande menos el tamaño
+nuevo.
+\item Si el izquierdo es más grande que el derecho, se mueven nodos y enlaces de
+izquierda a derecha.
+\item Si el derecho es más grande, se mueven nodos y enlaces del nodo derecho al
+izquierdo.
+\end{enumerate}
+
+El algoritmo de borrado completo es el siguiente:
+\begin{enumerate}
+\item Continuando con el caso anterior se ha buscado y borrado un elemento de un nodo hoja.
+\item Después de borrar hay \textit{pocos} elementos.
+\item Se selecciona una acción del cuadro \ref{tab:abm-borrar}
+\item Si la acción ha sido balancear, se termina.
+\item Si la acción ha sido fusionar, hay un nodo menos y hay que quitar un
+enlace del nodo superior.
+\item Volver a aplicar el algoritmo de borrado completo en el nodo superior.
+\end{enumerate}
+
+Se puede observar que este algoritmo es recursivo a la hora de descender, ya que
+se anotan: nodos izquierdos y derechos así como sus padres. Y luego se retrocede
+ese camino recursivo borrando entradas de los nodos si han sucedido fusiones de
+nodos, ya que en este caso hay que eliminar un enlace.
+
+La fusión se produce siempre hacia la izquierda, lo que garantiza que el árbol
+siempre estará equilibrado: se irán borrando nodos hoja a la vez que se ajusta
+el contenido de los nodos superiores; pero esto hace también difícil que el
+árbol reduzca su nivel. Por ejemplo, en el árbol de orden 51 con 4 niveles,
+hace falta dejar al nodo raíz con sólo un enlace para que desaparezca (y así
+eliminar un nivel), esto supone eliminar $50*51*51*50=6.502.500$ registros, para que
+el árbol tenga ahora $51*51*50=130.050$ registros.
+
+\subsection{Sincronización del árbol B+}
+Dado que los árboles B+ se utilizan en sistemas de bases de datos como índices,
+se han analizado diferentes formas \cite{rao00making} de mejorar la
+sincronización y por lo tanto el bloqueo de accesos, a las estructuras de un
+Árbol B+. El problema del acceso concurrente por parte de varios procesos o hilos
+de ejecución a la estructura del árbol, ya no es dos simples enlaces que pueden
+corromperse, sino millones de enlaces donde el hecho de que uno no indique el
+nodo correcto puede suponer perder la mitad de la información almacenada.
+
+\subsubsection{Primera aproximación}
+Una aproximación a las técnicas de bloqueo pasa por analizar que operaciones
+deseamos bloquear. En un principio y pensando que un proceso pueda estar leyendo
+el área que otro proceso está alterando, la primera solución que se sugiere es:
+\textit{poner un cerrojo por árbol}, de tal manera que las operaciones se
+realizan de manera secuencial y no ocurre una siguiente antes de que termine la
+anterior.
+
+Esta solución evita todos los problemas pero es muy poco eficiente, debido a
+que:
+\begin{itemize}
+\item Es muy habitual que varios procesos lean a la vez el árbol. Esto no supone
+en la realidad ningún problema pero con esta aproximación no es posible, por lo
+que cada lector tiene que esperar a que el anterior termine.
+\item Se tiene como ejemplo el árbol anterior de orden 51 y 4 niveles, tenemos
+más de 6 millones de registros. Si además se tienen 16 procesos accediendo al árbol
+simultáneamente, con 6 millones de registros, la probabilidad de que de un nodo
+hoja se borre a la vez que se lea es muy baja. Suponiendo que no hay que tocar
+el árbol nada más que para borrar la entrada de un nodo hoja sin fusionar o
+balancear:
+	\begin{itemize}
+	\item Si bloqueamos el árbol entero para una operación de lectura,
+	podríamos estar realizando la operación de borrado sin problemas.
+	\item Si bloqueamos el árbol entero para escritura y sabemos que no
+	vamos a tener que fusionar ni balancear, podríamos estar haciendo muchas
+	otras lecturas que no hacemos.
+	\end{itemize}
+\item Esto último se aplica también a las inserciones si no hay que dividir el
+nodo donde insertamos.
+\end{itemize}
+
+Analizando estos casos, se puede ver un problema bien conocido: existe una
+estructura de datos en memoria común a varios procesos, unos procesos quieren
+leer y otros escribir. Es el problema de los \textit{lectores escritores}
+
+\subsubsection{Lectores Escritores}
+La idea básica del problema de los lectores escritores es la siguiente:
+basándose en una estructura común:
+\begin{itemize}
+\item Varios procesos quieren leer y varios escribir.
+\item Pueden existir varios lectores a la vez en esa estructura común.
+\item Sólo puede existir un escritor operando en dicha estructura. Aunque muchos
+lectores y escritores pueden estar esperando para realizar la operación, sólo un
+escritor puede operar en el arbol, y cuando dicho escritor trabaja, ningún otro
+lector puede operar.
+\end{itemize}
+
+Soluciones se pueden encontrar en los libros de sistemas operativos
+\cite{tanem98}, \cite{stal02}. Muchas de estas soluciones están
+\textit{desequilibradas}, es decir, dan preferencia a los lectores o a los
+escritores. La preferencia se asigna de tal manera que si hay preferencia a los
+escritores, cuando llega un escritor, se salta la cola de espera de los lectores
+y es el siguiente que entra a operar; o al revés, la preferencia de los
+lectores, indica que un lector cuando se pone a la espera para operar en el
+árbol siempre se salta la cola de los escritores.
+
+Esto puede provocar \textit{inanición}: que un escritor no llegue a escribir
+nunca o que un lector no llegue a leer nunca, debido a que aunque están en la
+cola a la espera de operar, siempre hay otra operación que se salta dicha cola y
+les mantiene indefinidamente a la espera.
+
+Para evitar dicha inanición se ha utilizado un algoritmo lo más equilibrado
+posible (cuadro \ref{tab:readwrite}). Se compone de:
+\begin{itemize}
+\item \textit{num\_lectores}: Una variable que controla el número de lectores.
+\item \textit{seccion\_critica}: Un cerrojo para acceder a dicha variable.
+\item \textit{cola}: Un cerrojo que actúa como una cola donde se apuntan tanto lectores como
+escritores.
+\item Un cerrojo para los escritores.
+\end{itemize}
+
+\begin{table}
+\begin{tabularx}{\linewidth}{|X|X|}
+\hline
+\multicolumn{1}{|c|}{\bf Lector} & \multicolumn{1}{c|}{\bf Escritor} \\
+\hline
+\hline
+\tt LOCK(cola) & \tt LOCK(cola)\\
+\tt LOCK(seccion\_critica) & \tt LOCK(bloqueo\_escritores)\\
+\tt num\_lectores=num\_lectores+1 & \tt UNLOCK(cola)\\
+\hhline{~-}
+\tt if (num\_lectores == 1) & Realizar la escritura\\
+\hhline{~-}
+\tt \quad LOCK(bloqueo\_escritores)& \tt UNLOCK(bloqueo\_escritores)\\
+\hhline{~-}
+\tt UNLOCK(seccion\_critica) &\\
+\tt UNLOCK(cola) & \\
+\hhline{-}
+Realizar la lectura correspondiente. & \\
+\hhline{-}
+\tt LOCK(seccion\_critica) & \\
+\tt num\_lectores=num\_lectores-1 & \\
+\tt if (num\_lectores == 0) & \\
+\tt \quad UNLOCK(bloqueo\_escritores) & \\
+\tt UNLOCK(seccion\_critica) & \\
+\hline
+\end{tabularx}
+\caption{Algoritmo de lectores escritores equilibrados usando cerrojos}
+\label{tab:readwrite}
+\end{table}
+
+La nomenclatura de las diferentes acciones de la solución al problema lector
+escritor son:
+\begin{itemize}
+\item \textit{Bloquear para leer}: ejecutar la primera parte del lector,
+hasta justo antes de realizar la lectura correspondiente. Simboliza que se
+quiere realizar una lectura.
+\item \textit{Desbloquear lectura}: ejecutar la segunda parte del lector, justo
+después de la lectura correspondiente. Simboliza que la lectura ha finalizado.
+\item \textit{Bloquear para escribir}: ejecutar la primera parte del escritor, hasta
+justo antes de realizar la escritura correspondiente. Como antes, simboliza que
+se quiere realizar una escritura.
+\item \textit{Desbloquear escritura}: ejecutar la segunda parte del escritor (un
+simple desbloqueo), justo después de la escritura correspondiente. Simboliza que
+la escritura ha finalizado.
+\end{itemize}
+
+Algunos casos con los que nos podemos encontrar son los siguientes, que además
+ayudarán a entender el funcionamiento de esta solución al problema lector
+escritor.
+\begin{itemize}
+\item \textbf{Sólo lectores}: en este caso, como pueden existir múltiples
+lectores accediendo de manera concurrente a los datos, cada lector aumenta en
+uno la variable de número de lectores; además el primer lector impide a los
+escritores entrar bloqueando el cerrojo de los escritores.
+Al acabar su lectura decrementan en uno el contador de lectores y el último
+lector que sale, abre el cerrojo de los escritores.
+\item \textbf{Aparece un escritor}: 
+\begin{enumerate}
+\item En un momento dado, aparece un escritor,
+junto con el resto de lectores se pone en la cola, pero mientras que los
+lectores salen de la cola directamente, el escritor se queda bloqueado en su
+cerrojo de escritores ya que, continuando con el punto anterior, hay muchos
+lectores accediendo.
+\item Como no ha desbloqueado el cerrojo de cola, en el preciso instante que se
+queda bloqueado en su cerrojo de escritor, todas las nuevas peticiones, ya sean
+de lectores o escritores se bloquean en el cerrojo de cola.
+\item Con el tiempo, los lectores que hay dentro terminarán su lectura, e irán
+decrementando el contador.
+\item Cuando el último lector salga, desbloqueará el cerrojo de los escritores,
+y el lector liberará la cola y realizará su escritura. En este momento puede
+intentar acceder un lector o un escritor.
+\item Cuando el escritor termine, abrirá el cerrojo de escritura.
+\end{enumerate}
+\item \textbf{Justo después del escritor, aparece un lector}
+\begin{enumerate}
+\item Cuando el escritor desbloquea la cola, entra un lector.
+\item Ese lector es el primero, ya que recordemos que para que el escritor
+entrase no tenia que haber ningún lector.
+\item El lector al ser el primero, intenta bloquear el cerrojo de escritores,
+pero ya esta bloqueado dado que hay un lector dentro, y se queda a la espera.
+\item Como se queda a la espera, el cerrojo de cola no se desbloquea y no pueden
+entrar más operaciones.
+\item Cuando el escritor termine abriendo dicho cerrojo de cola, el lector que
+había permanecido a la espera en dicho cerrojo se desbloquea dejando dicho
+cerrojo bloqueado para nuevos escritores.
+\end{enumerate}
+\item \textbf{Justo después del escritor, aparece otro escritor}
+\begin{enumerate}
+\item Ahora justo después del escritor, en vez de un lector, aparece otro
+escritor.
+\item Pasa del cerrojo de la cola al cerrojo de escritores.
+\item Como el cerrojo de escritores estaba bloqueado debido a que ya hay un
+escritor dentro, se queda a la espera de que el escritor termine la operación.
+\item En dicha espera no libera el cerrojo de cola, por lo que las nuevas
+operaciones se ponen a la espera en dicha cola.
+\item Cuando el escritor inicial termina, desbloquea el cerrojo de escritores, y
+el nuevo escritor comienza su operación.
+\item Si justo después aparece un lector, es el caso anterior; y si aparece un
+escritor, es este mismo caso.
+\end{enumerate}
+\end{itemize}
+
+\subsubsection{Solución aplicada al árbol B+ implementado}
+En el árbol que se ha implementado se ha aplicado el problema de los lectores
+escritores en 2 niveles:
+\begin{itemize}
+\item \textit{A nivel de árbol}: se puede bloquear el árbol para lectura o para
+escritura.
+\item \textit{A nivel de nodo hoja}: un nodo hoja se puede bloquear para lectura o para
+escritura.
+\end{itemize}
+
+La idea de aplicar esta división en dos niveles es que muchas veces solamente se
+necesita bloquear el nodo hoja para añadir o borrar un dato, dejando el árbol
+intacto; por lo que no hay que bloquear el árbol entero (millones de registros),
+si solo necesitamos bloquear un nodo. Si a la hora de insertar o borrar, se
+detecta que va a hacer falta modificar más de un nodo hoja, se desiste y se
+bloquea el árbol para escritura, volviendo a empezar la operación de inserción.
+
+Veamos como se aplica esta solución a cada operación:
+\paragraph{$\diamond$ Operación de búsqueda indexada}
+Algoritmo empleado para la búsqueda indexada:
+\begin{enumerate}
+\item Primero se bloquea el árbol para lectura.
+\item Se desciende por el árbol buscando el nodo hoja correspondiente.
+\item Una vez obtenemos el enlace del nodo hoja, bloqueamos dicho nodo para
+lectura.
+\item Entre medias, dicho nodo no ha podido desaparecer ya que el árbol estaba
+bloqueado para lectura y su estructura no ha sido modificada, así que al menos
+nos aseguramos el acceso al nodo.
+\item Buscamos dentro del nodo y finalizamos la operación de búsqueda de manera
+satisfactoria o no, dependiendo si hemos encontrado o no lo que buscábamos.
+\item Desbloqueamos la lectura del nodo hoja.
+\item Desbloqueamos la lectura del árbol.
+\end{enumerate}
+
+\paragraph{$\diamond$ Operación de búsqueda no-indexada}
+Algoritmo empleado para la búsqueda no indexada:
+\begin{enumerate}
+\item Se bloquea el árbol para lectura
+\item Se obtiene el puntero al primer nodo hoja, que es el nodo actual.
+\item Se bloquea el nodo actual para lectura.
+\item Se busca en el nodo actual. Si se encuentra lo que hemos buscado,
+desbloqueamos el nodo y el árbol para lectura y devolvemos el dato. Si no se
+encuentra, continuamos.
+\item Se obtiene el puntero al nodo siguiente, y se le hace nodo actual.
+\item Se desbloquea la lectura el nodo anterior.
+\item Volvemos al punto 2: bloquear el nodo actual.
+\item Si se llega al final de la lista de nodos hoja sin encontrar el dato
+deseado, se desbloquea el último nodo y el árbol de lectura y se finaliza.
+\end{enumerate}
+
+\paragraph{$\diamond$ Operación de modificación}
+Algoritmo empleado para la modificación de los datos de un registro:
+\begin{enumerate}
+\item Se bloquea el árbol para lectura.
+\item Se busca el nodo hoja que contiene el registro a modificar.
+\item Se bloquea el nodo hoja para escritura.
+\item Se busca el dato en el nodo hoja. Si no se encuentra, se desbloquea el
+nodo hoja de escritura y el árbol de lectura, y se termina la operación.
+\item Si se encuentra, se modifica.
+\item Se desbloquea la escritura del nodo hoja, y la lectura del árbol
+\end{enumerate}
+
+\paragraph{$\diamond$ Operación de inserción}
+El algoritmo para la inserción confía en encontrarse con el mejor caso: una
+inserción directa sin modificaciones de la estructura; pero si detecta que va a
+tener que modificar dicha estructura, aborta la operación y bloquea el árbol
+para escritura para asegurarse el poder modificar la operación. Eso no quita que
+entre que desbloquea el árbol de lectura y lo bloquea para escritura los nodos
+cambien de contenido y la operación pudiera realizarse sin necesidad de este
+bloqueo; pero aun en este caso, se opta por bloquear todo el árbol. La
+descripción del algoritmo es la siguiente:
+\begin{enumerate}
+\item Se bloquea el árbol para lectura.
+\item Se busca el nodo hoja donde insertar.
+\item Se bloquea el nodo hoja para escritura.
+\item Comprobamos si podemos insertar:
+	\begin{enumerate}
+	\item Si la clave existe, no permitimos claves duplicadas, abortamos la
+	operación desbloqueando el nodo hoja de escritura y la lectura del
+	árbol.
+	\item Si el nodo está lleno, abortamos la operación, desbloqueamos la
+	escritura del nodo y la lectura del árbol. Y bloqueamos para escritura
+	el árbol entero; en este caso no hay que hacer ninguna comprobación ya
+	que \textit{será la única operación que actúe en el árbol}.
+	\end{enumerate}
+\item Insertamos el dato
+\item Desbloqueamos la escritura del nodo hoja y la lectura del árbol.
+\end{enumerate}
+
+\paragraph{$\diamond$ Operación de borrado}
+La operación de borrado, de manera muy similar a la operación de inserción,
+confía en que el borrado no afecte a la estructura del árbol. Antes de borrar
+comprueba si el nivel de ocupación del nodo bajaría por debajo del límite, y en
+caso afirmativo aborta la operación y bloquea el árbol para escritura,
+reanudándola con la confianza de ser la única operación trabajando en el árbol.
+El algoritmo empleado para el borrado es el siguiente:
+\begin{enumerate}
+\item Se bloquea el árbol para lectura.
+\item Se busca el nodo hoja con el registro a borrar.
+\item Se bloquea el nodo hoja para escritura.
+\item Se comprueba si es posible el borrado:
+	\begin{enumerate}
+	\item Si la clave no existe, se aborta la operación ya que no hay nada
+	que borrar, y se desbloquea la escritura del nodo y la escritura del
+	árbol.
+	\item Si al borrar un elemento del nodo hoja, la capacidad del nodo está
+	por debajo del límite mínimo de ocupación de un nodo, se aborta la
+	operación desbloqueando la escritura del nodo y la lectura del árbol.
+	Más tarde se bloquea el árbol para escritura y se repite, teniendo la
+	certeza de que es la única operación que se esta realizando en el árbol.
+	\end{enumerate}
+\item Si es posible, se borra el elemento del nodo.
+\item Se desbloquea la escritura del nodo y la lectura del árbol.
+\end{enumerate}
+Durante el borrado, sólo se producen fusiones y balanceos entre nodos si el
+árbol está bloqueado para escritura, ya que tanto en un balanceo como en una
+fusión, hace falta actualizar los nodos superiores, y para eso se necesita
+disponer del árbol de manera exclusiva.
+
+\subsection{Implementación del árbol B+}
+La implementación del árbol B+ la componen varios ficheros, cada uno con su
+funcionalidad.
+\begin{itemize}
+\item \texttt{arbolbmas.parmacs.c} Código del árbol B+
+\item \texttt{arbolbmas.h}: Cabecera para usar con otros módulos con la
+declaración del interfaz y de los tipos de datos usados.
+\item \texttt{readwrite.parmacs.c readwrite.parmacs.h}: Implementación del
+problema lector escritor, usado por el código del árbol B+.
+\item \texttt{arbolbmas-priv.h}: Macros y definiciones internas del árbol.
+\end{itemize}
+\subsubsection{Problema del lector escritor}
+Este módulo resuelve el problema del lector-escritor, para ello define una
+estructura de sincronización y una serie de funciones para actuar sobre dicha
+estructura. Comenzaremos con las estructuras y tipos de datos:
+
+\paragraph{$\triangleright$ struct struct\_rw}
+Estructura que define un sistema de bloqueo lector/escritor
+\begin{itemize}
+\item \texttt{LOCKDEC(cola)} Cerrojo que actúa como cola a la hora de encolar
+las operaciones de lectura o de escritura que se vayan solicitando.
+\item \texttt{LOCKDEC(seccion\_critica)} Cerrojo que protege la variable
+controla el número de lectores actuales: num\_lectores.
+\item \texttt{LOCKDEC(bloqueo\_escritores)} Cerrojo utilizado para dar paso a un
+solo escritor.
+\item \texttt{int num\_lectores;} Variable que controla el número actual de
+lectores.
+\end{itemize} 
+
+\paragraph{$\triangleright$ rw\_data}
+Se define el tipo de dato rw\_data de la siguiente manera:\\
+\texttt{typedef struct struct\_rw rw\_data;}
+
+Las funciones para el problema lector escritor y que utilizan la estructura
+anterior, son las siguientes:
+\paragraph{$\triangleright$ rw\_init}
+\begin{itemize}
+\item Declaración: \texttt{rw\_data *rw\_init(rw\_data *nuevo)}
+\item Descripción: Inicializa un identificador lector/escritor.
+	\begin{itemize}
+	\item Inicializa los 3 semáforos.
+	\item Pone a 0 el contador de lectores.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{rw\_data *nuevo} (entrada): Estructura lector/escritor a
+	inicializar.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ rw\_read\_ini}
+\begin{itemize}
+\item Declaración: \texttt{void rw\_read\_ini(rw\_data *bloq)}
+\item Descripción: Añade un lector a la estructura lector/escritor.
+	\begin{itemize}
+	\item Si el lector puede leer, la función devuelve el control y anota el
+	lector extra.
+	\item Si el lector no puede leer debido a que hay un escritor
+trabajando, la función no devuelve el control y se queda a la espera de poder
+realizar la lectura.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{rw\_data *bloq} (entrada): puntero a un identificador
+lector/escritor sobre el que trabajar.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ rw\_read\_fin}
+\begin{itemize}
+\item Declaración: \texttt{void rw\_read\_fin(rw\_data *bloq)}
+\item Descripción: Indica la finalización de una operación de lectura, por lo
+que resta un lector al identificador lector/escritor.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{rw\_data *bloq} (entrada): puntero a un identificador 
+lector/escritor sobre el que trabajar.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ rw\_write\_ini}
+\begin{itemize}
+\item Declaración: \texttt{void rw\_write\_ini(rw\_data *bloq)}
+\item Descripción: Añade un escritor al identificador lector/escritor, iniciando
+una operación de escritura.
+	\begin{itemize}
+	\item Si al intentar añadir un escritor hay lectores u otro escritor, la
+	función no devuelve el control y se mantiene a la espera.
+	\item En el momento que no exista ningún lector ni escritor, la función
+	devuelve el control.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{rw\_data *bloq} (entrada): puntero a un identificador
+	lector/escritor sobre el que trabajar.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ rw\_write\_fin}
+\begin{itemize}
+\item Declaración: \texttt{void rw\_write\_fin(rw\_data *bloq)}
+\item Descripción: Finaliza una operación de escritura que ha comenzado.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{rw\_data *bloq} (entrada): puntero a un identificador
+	lector/escritor sobre el que trabajar.
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Árbol B+}
+El interfaz para comunicarse con el árbol B+ es una fiel representación de la
+teoría; contiene las operaciones de búsqueda indexada y no indexada,
+modificación, inserción y borrado. Todas estas operaciones se hacen en base a la
+estructura que identifica a un árbol.
+
+Aun así el árbol tiene unos parámetros que definen un poco su funcionamiento:
+\paragraph{$\triangleright$ NODE\_SIZE}
+Para hacer un árbol de orden $n$ este valor tiene que contener $n-1$. Es la
+capacidad de un nodo: el número de claves y enlaces de un nodo hoja, y el
+número de claves de un nodo interno; NODE\_SIZE+1 es el número de enlaces del
+nodo interno. El valor mínimo es $3$.
+
+\paragraph{$\triangleright$ NODE\_SIZE\_MIN}
+Mínima cantidad de datos en un nodo.
+\begin{itemize}
+\item Ayuda a ajustar la altura del nodo de manera más o menos rápida.
+Según el valor de este valor mínimo: a un valor del mínimo más pequeño, más
+tarde se realizará el ajuste.
+\item Se debe de cumplir la regla: $min \leq (max)/2$, para que el nodo pueda
+        dividirse por la mitad cuando se llena y no incumpla el mínimo.
+\end{itemize}
+
+Las estructuras y tipos de datos utilizadas en la comunicación
+con el árbol:
+
+\paragraph{$\triangleright$ struct struct\_ABMNodo}
+Nodo del árbol, tanto interno como hoja:
+\begin{itemize}
+\item \texttt{unsigned char  atributos;} Atributos del nodo. Actualmente sólo
+almacena si el nodo es interno o es hoja.
+\item \texttt{unsigned short ocupados;} Entradas ocupadas en el nodo.
+\item \texttt{unsigned int   keysize;} Tamaño de las claves de este nodo. Este
+campo es necesario para que el nodo sea autosuficiente y se pueda operar con él
+sin necesidad de consultar la estructura principal de árbol.
+\item \texttt{rw\_data        bloq;} Estado de sincronización del nodo.
+\item \texttt{union enlaces} Unión para diferenciar tipos.
+	\begin{itemize}
+        \item \texttt{struct struct\_ABMNodo *interno[NODE\_SIZE+1];} Si el nodo
+	es interno, los enlaces de ese nodo son a otros nodos
+	\item \texttt{void *externo[NODE\_SIZE];} Si el nodo es hoja, los
+	enlaces son a los datos.
+	\end{itemize}
+\item \texttt{struct struct\_ABMNodo *link;} Enlace a otro nodo. 
+	\begin{itemize}
+	\item Si el nodo es interno, es un enlace al nodo padre.
+	\item Si el nodo es hoja, es un enlace al nodo siguiente.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ struct struct\_Arbol}
+Estructura que almacena información del árbol.
+\begin{itemize}
+\item \texttt{struct struct\_ABMNodo *raiz;} Puntero al nodo raíz del árbol.
+\item \texttt{struct struct\_ABMNodo *listaHojas;} Puntero a la hoja más a la
+izquierda del árbol.
+\item \texttt{unsigned int keysize;} Tamaño en bytes de la clave.
+\item \texttt{unsigned int regsize;} Tamaño en bytes del registro completo.
+\item \texttt{int (*comparar)(void *,void *);} Función de comparación de 2
+claves a y b, que devuelve:
+	\begin{itemize}
+	\item $-1$ si $a < b$
+	\item $0$ si $a = b$
+	\item $1$ si $a > b$
+	\end{itemize}
+\item \texttt{rw\_data      bloq;} Estado de sincronización del árbol.
+\end{itemize}
+
+\paragraph{$\triangleright$ struct struct\_iterador}
+Iterador para búsquedas secuenciales sin usar un campo clave.
+\begin{itemize}
+\item \texttt{struct struct\_ABMNodo *actual;} Nodo en el que nos encontramos.
+\item \texttt{unsigned int            pos;} Posición dentro del nodo actual en
+la que nos encontramos.
+\item \texttt{unsigned int           regsize;} Tamaño de los registros a
+devolver.
+\item \texttt{int(*encaja)(void *,void *);} Función que dado un registro
+comprueba si cumple ciertas condiciones. Dados un registro a y unos datos, esta
+función devuelve 1 si dicho registro cumple las condiciones que implementa la
+función, o 0 si no las cumple.
+\item \texttt{void    *datos;} Datos extra para la función encaja.
+\item \texttt{rw\_data *bloq;} Estructura de sincronización del árbol.
+\end{itemize}
+
+\paragraph{$\triangleright$ ABMNodo}
+Se define el tipo de dato ABMNodo como: \\
+\texttt{typedef struct struct\_ABMNodo ABMNodo;}
+
+\paragraph{$\triangleright$ Arbol}
+Se define el tipo de dato Arbol como: \\
+\texttt{typedef struct struct\_Arbol   Arbol;}
+
+\paragraph{$\triangleright$ cmpFunc}
+Tipo de dato que identifica un puntero a una función de comparación que
+compara dos registros: a y b; de tal manera que:
+\begin{itemize}
+\item Si $a > b$: devuelve $1$.
+\item Si $a = b$: devuelve $0$.
+\item Si $a < b$: devuelve $-1$.
+\end{itemize}
+Se define el tipo de dato cmpFunc como: \\
+\texttt{typedef int(*cmpFunc)(void *,void*);}
+
+\paragraph{$\triangleright$ iterador}
+Se define el tipo de dato iterador como: \\
+\texttt{typedef struct struct\_iterador iterador}
+
+\paragraph{$\triangleright$ itFunc}
+Tipo de dato para la función de búsqueda del iterador. Dado un registro devuelve
+0 o 1 si dicho registro encaja o no con las especificaciones indicadas en la
+función respectivamente.
+\begin{itemize}
+\item Primer parámetro de entrada: registro siguiente.
+\item Segundo parámetro de entrada: datos extra indicados al crear el iterador.
+\end{itemize}
+Se define el tipo de dato itFunc como:\\
+\texttt{typedef int(*itFunc)(void *,void *);}
+
+\paragraph{$\triangleright$ doFunc}
+Tipo de dato para la función de modificación de datos del árbol.
+Dados dos registros: uno el usado para la búsqueda y otro el que
+se ha encontrado en el árbol; realiza una operación con el fin,
+de actualizar el registro encontrado usando los datos del registro
+dado para la búsqueda.
+
+Se define el tipo de dato doFunc como:\\
+\texttt{typedef void(*doFunc)(void *,void *);}
+
+Por último, vamos a ver las \textit{funciones} que hacen de interfaz con el árbol:
+
+\paragraph{$\triangleright$ abm\_nuevo}
+\begin{itemize}
+\item Declaración: \texttt{Arbol *abm\_nuevo(int regsize,int keysize,cmpFunc
+comparar)}
+\item Descripción:Crea un árbol B+ nuevo.
+	\begin{itemize}	
+  	\item Reserva la memoria necesaria para la estructura que identifica al
+	árbol.
+  	\item La inicializa a un estado que indique que el árbol está vacío: con
+	sólo un nodo que es hoja y vacío.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{int regsize} (entrada): Tamaño en bytes del registro a
+	usar.
+        \item \texttt{int keysize} (entrada): Tamaño de la clave del registro.
+        \item \texttt{cmpFunc comparar} (entrada): Función que compara dos
+	claves de dos registros. De tal manera que si al 1er parámetro le
+	denominamos A y al
+	segundo B, al llamar a la función comparar(A,B), esta devolverá:
+		\begin{itemize}
+		\item $-1$ si $A<B$
+		\item $0$ si $A=B$
+		\item $1$ si $A>B$
+		\end{itemize}
+        \end{itemize}
+\item Devuelve: Un puntero al nuevo árbol creado.
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_destruir}
+\begin{itemize}
+\item Declaración: \texttt{void abm\_destruir(Arbol *arb)}
+\item Descripción: (función sincronizada) Destruye un árbol borrando todo su contenido, lo que incluye:
+	\begin{itemize}
+        \item Los registros asociados.
+	\item Los nodos que lo componen.
+	\item La estructura que identifica al árbol.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{Arbol *arb} (entrada): Puntero al árbol a destruir.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_insertar}
+\begin{itemize}
+\item Declaración: \texttt{int abm\_insertar(Arbol *arb,void *registro)}
+\item Descripción: (función sincronizada) Inserta un registro en el árbol. Para insertar un registro en el árbol:
+	\begin{itemize}
+        \item Primero se localiza el nodo donde insertarlo.
+	\item Si el nodo en cuestión está lleno hay que dividirlo, lo que puede 
+	encadenar más de una división.
+	\item Si no, se reserva memoria compartida para el registro, y
+	se inserta.
+	\end{itemize}
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{Arbol *arb} (entrada): árbol con el que trabajar.
+        \item \texttt{void *registro} (entrada): Zona de memoria con el registro
+	a insertar. Después de la inserción, esta memoria se puede liberar, ya
+	que se hace copia del contenido.
+        \end{itemize}
+\item Devuelve: Un entero con el estado de la operación.
+	\begin{itemize}
+	\item \texttt{ABM\_ERROR} En caso de error.
+	\item \texttt{ABM\_DUP} En caso de que el registro ya existiera.
+	\item \texttt{ABM\_OK} Si el registro ha sido insertado
+	satisfactoriamente.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_buscar}
+\begin{itemize}
+\item Declaración: \texttt{int abm\_buscar (Arbol *arb,void *registro)}
+\item Descripción: (función sincronizada) Busca un registro dada una clave. Utiliza el parámetro
+registro tanto para entrada: es ahí donde se indica
+la clave a buscar, como para salida: en caso de encontrar el registro,
+los datos van a parar a esa estructura.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{Arbol *arb} (entrada): árbol donde realizar la operación.
+        \item \texttt{void *registro} (entrada y salida): Contiene la clave por
+	la que buscar, y almacena el resultado en caso de que la búsqueda de
+	resultados.
+        \end{itemize}
+\item Devuelve: Un entero indicando si la búsqueda ha tenido o no éxito.
+	\begin{itemize}
+	\item \texttt{ABM\_OK} Se ha encontrado lo que se buscaba.
+	\item \texttt{ABM\_404} No se ha encontrado el registro buscado.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_modificar}
+\begin{itemize}
+\item Declaración: \texttt{int abm\_modificar(Arbol *arb,void *registro,doFunc
+hacer)}
+\item Descripción: (función sincronizada) Modifica un registro dada su clave.
+    Modifica el contenido de un registro buscándolo a partir de su clave. Es
+    importante señalar, que NO SE DEBE cambiar la clave del registro con esta 
+    operación, pues los resultados NO se reflejarán en el árbol y el registro 
+    sólo se podrá acceder usando la clave anterior.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{Arbol *arb} (entrada): árbol donde realizar la operación.
+        \item \texttt{void *registro} (entrada): Registro que contiene tanto la
+	clave como los nuevos datos a insertar, esto último en el caso de que hacer sea NULL.
+        \item \texttt{doFunc hacer} (entrada): Función que contiene una
+operación a realizar cuando se encuentre el registro a modificar. Este parámetro
+puede ser NULL, y en este caso se cambiaran los datos del registro encontrado a
+los del parámetro ``registro''; si no es null, se utilizará la clave del parámetro
+registro, y cuando se encuentre el dato, se aplicará la función.
+        \end{itemize}
+\item Devuelve: Un entero indicando el resultado de la operación.
+	\begin{itemize}
+	\item \texttt{ARB\_OK} Se ha encontrado y modificado el registro
+	\item \texttt{ABM\_404} Valor no encontrado, por lo que no se pudo
+	modificar.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_borrar}
+\begin{itemize}
+\item Declaración: \texttt{int abm\_borrar (Arbol *arb,void *clave)}
+\item Descripción: (función sincronizada) Borra un registro del árbol.
+    El borrado de un registro del árbol es una de las operaciones más costosas
+    debido a que puede implicar desde el simple borrado del registro, balanceo 
+    entre hojas, hasta borrado de nodos y reajuste del árbol.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{Arbol *arb} (entrada): árbol donde realizar las
+operaciones.
+        \item \texttt{void *clave} (entrada): Clave del registro a borrar.
+        \end{itemize}
+\item Devuelve: Un entero indicando el resultado de la operación.
+	\begin{itemize}
+	\item \texttt{ABM\_OK} La operación se ha realizado sin incidencias.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_it\_init}
+\begin{itemize}
+\item Declaración: \texttt{void abm\_it\_init (iterador *it,Arbol *arb,itFunc
+encaja,void *datos)}
+\item Descripción: (función sincronizada) Inicializa un nuevo iterador. Dado un
+árbol, inicializa un iterador para recorrer el árbol secuencialmente a través de sus nodos hoja
+en busca de registros que encajen en las condiciones que aplicará la función ``encaja''.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{iterador *it} (entrada): Iterador a inicializar.
+        \item \texttt{Arbol *arb} (entrada): árbol que recorrer.
+        \item \texttt{itFunc encaja} (entrada): Función de encaje. Su función
+	consiste en que dado un registro devuelve 1 si cumple ciertas condiciones que
+        tiene la función internamente, o 0 si no las cumple..
+        \item \texttt{void *datos} (entrada): Información extra para que la
+	función encaja trabaje.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_it\_fin}
+\begin{itemize}
+\item Declaración: \texttt{void abm\_it\_fin(iterador *it)}
+\item Descripción: (función sincronizada) Pone fin a una iteración por los nodos
+hoja del árbol. Es necesario ejecutar esta función después de terminar el
+recorrido para liberar el bloqueo de lectura del árbol.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{iterador *it} (entrada): Iterador sobre el que trabajar.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ abm\_iterar}
+\begin{itemize}
+\item Declaración: \texttt{int abm\_iterar(iterador *itr,void *registro)}
+\item Descripción: (función sincronizada) Realiza una iteración entre los nodos hoja del árbol. Busca
+solamente un registro con el que la función ``encaja'' esté de acuerdo, una vez
+encontrado lo devuelve, pudiendo llamar más tarde a esta función para continuar.
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{iterador *itr} (entrada): Iterador sobre el que trabajar
+y que contiene el estado actual de iteración.
+        \item \texttt{void *registro} (salida): Zona de memoria donde guardar
+el registro encontrado.
+        \end{itemize}
+\item Devuelve: Un entero indicando el estado de la operación.
+	\begin{itemize}
+	\item \texttt{ABM\_OK} Se ha encontrado un registro.
+	\item \texttt{ABM\_FIN} Se ha llegado al final de la lista de nodos hoja
+y no se ha encontrado ningún registro más. Se debe llamar a abm\_it\_fin para
+finalizar la iteración.
+	\end{itemize}
+\end{itemize}
+
+\subsubsection{Peculiaridades de la implementación}
+Al igual que en la lista simplemente enlazada, una de las peculiaridades es la
+de admitir registros genéricos, y en este caso dado que hace falta un campo
+clave (o unos campos clave), también se permiten claves genéricas.
+
+Si un nodo, tanto interno como hoja, contiene las claves además de los enlaces,
+dado que las claves son de tamaño arbitrario (dependen del registro), cuando se
+reserva memoria para la estructura del nodo, también se añade la memoria
+necesaria para las claves:\\
+\texttt{nuevoNodo=(ABMNodo *)G\_MALLOC(sizeof(ABMNodo) + NODE\_SIZE*keysize)}
+
+Esto implica manejo de punteros para establecer y obtener una clave. Para
+simplificar estas operaciones se ha hecho uso de macros del preprocesador de C.
+\begin{itemize}
+\item Obtener una clave:\\
+\texttt{\#define getNodeKey(nodo,pos) ((void *)(nodo+1))+((pos)*getKeySize(nodo))}
+\item Establecer una clave:\\
+\texttt{\#define setNodeKey(nodo,pos,clave) memcpy(getNodeKey(nodo,pos),clave,getKeySize(nodo))}
+\item Macro auxiliar de obtener el tamaño de la clave de un nodo:\\
+\texttt{\#define getKeySize(nodo) nodo->keysize}
+\end{itemize}
+
+\subsection{Banco de pruebas del subsistema}
+Este subsistema es la base del benchmark TPC-C, un fallo en cualquiera de sus
+funciones puede suponer a alto nivel un error indetectable o una corrupción de
+las estructuras que acabe dando un error fatal. Por lo que se ha hecho un esfuerzo
+especial en probar todas las funcionalidades de estos dos métodos de
+almacenamiento.
+
+\subsubsection{Lista Enlazada}
+Es el sistema de almacenamiento más simple con solo dos operaciones: añadir al
+final y borrar del principio. Las pruebas por las que ha pasado y ha superado
+son las siguientes.
+\begin{itemize}
+\item Insertar números de manera secuencial.
+\item Recuperar dichos números en el mismo orden que se insertaron borrando y
+recuperando por el principio.
+\item Destruir la lista y con ello liberar la memoria.
+\end{itemize}
+
+\subsubsection{Árbol B+}
+Para el árbol, dado que es más complejo y tiene más operaciones se han realizado
+muchas más pruebas, sobre todo basándose en inserciones y borrados aleatorios ya
+que representan mejor un funcionamiento real. Las pruebas a las que ha sido
+sometido y ha superado son:
+\begin{itemize}
+\item Iterar en un árbol vacío no debe ocasionar errores.
+\item No se debe de poder insertar un valor duplicado.
+\item Rellenar con una secuencia de números aleatoria: dado un rango de números,
+barajarlos e insertarlos.
+\item Buscar un dato concreto.
+\item Modificar un dato concreto.
+\item Modificar utilizando una función de modificación.
+\item Iterar buscando pares.
+\item Iterar buscando múltiplos de 7.
+\item Volcado de la estructura en memoria a modo texto para observar de manera
+visual que se cumplen todas las propiedades del árbol.
+\item Borrado de dicho rango de números, pero con otro barajeo distinto al de
+inserción. Después de borrado, se comprueba de manera automática algunas
+condiciones del árbol:
+	\begin{itemize}
+	\item La lista de nodos recorre todos los nodos.
+	\item Se puede llegar a todos los datos.
+	\item Las claves conservan el orden.
+	\end{itemize}
+\end{itemize}
+
+\subsubsection{Aplicaciones de prueba}
+Ambas pruebas han sido implementadas en programas de prueba; esto facilita el
+comprobar la validez de las estructuras tras pequeños cambios y correcciones.
+Los programas que comprueban las estructuras son los siguientes.
+\begin{itemize}
+\item \texttt{abm\_test} que proviene de \texttt{abm\_test.parmacs.c}. Realiza
+las pruebas indicadas anteriormente al árbol B+.
+\item \texttt{le\_test} que proviene de \texttt{le\_test.c}. Realiza las pruebas
+indicadas anteriormente a la lista enlazada.
+\end{itemize}
+

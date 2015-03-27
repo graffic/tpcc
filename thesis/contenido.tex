@@ -1,0 +1,101 @@
+\chapter{Contenidos del CD-ROM adjunto}\label{app:cdrom}
+Por la parte interior de la tapa trasera se encuentra adjunto un CD-ROM con los
+contenidos expuestos en esta memoria. Para acceder a este CD-ROM es necesario un
+ordenador con lector de CD-ROM; no importando el sistema operativo que se use.
+
+\section{Acceso al CD-ROM}
+\subsubsection{Acceso desde sistemas windows}
+\begin{enumerate}
+\item Insertar el CD-ROM en el lector.
+\item Acceder desde el icono \textit{Mi Pc} del escritorio o desde el
+\textit{Explorador de ficheros} a la unidad correspondiente.
+\item Si el sistema windows lo permite, la unidad aparecerá etiquetada como
+\textit{PFC-TPCC}.
+\end{enumerate}
+
+\subsubsection{Acceso desde sistemas Mac OS 10.X}
+\begin{enumerate}
+\item Insertar el CD-ROM en el lector.
+\item Acceder al \textit{finder} o al escritorio.
+\item Si se accede desde el finder, en la parte superior izquierda se habrá
+creado una nueva unidad que da acceso al CD-ROM.
+\item Si se accede desde el escritorio, junto al icono de acceso al disco duro,
+se habrá creado otro icono de acceso al CD-ROM.
+\item Por último, si se accede desde consola, ir al directorio
+\texttt{/Volumes/PFC-TPCC}
+\end{enumerate}
+
+\subsubsection{Acceso desde sistemas Linux/Unix}
+\begin{enumerate}
+\item Insertar el CD-ROM en el lector.
+\item Si el sistema linux/unix dispone de sistema de montado automático, en el
+escritorio gráfico o en los directorios \texttt{/mnt} o \texttt{/media}
+aparecerá el CD-ROM accesible.
+\item Si el sistema no dispone de un sistema de montado automático, habrá que
+utilizar la orden mount para acceder a los contenidos del CD-ROM
+\item En cualquier caso, teclear \texttt{mount} para conocer el estado de los
+dispositivos de almacenamiento montados en el sistema.
+\item Más información sobre la orden mount tecleando \texttt{man mount}
+\end{enumerate}
+
+\section{Listado del contenido}
+Partiendo del directorio raíz del CD-ROM, encontramos:
+\begin{itemize}
+\item \texttt{/memoria.pdf} Una copia de esta memoria en formato PDF.
+\item \texttt{/fuentes/} Directorio donde se almacena el código fuente.
+	\begin{itemize}
+	\item \texttt{tpcc.tar.gz} Código fuente del benchmark TPC-C.
+	\end{itemize}
+\item \texttt{/original/} Directorio donde se almacenan los originales en formato
+\LaTeX de esta memoria.
+	\begin{itemize}
+        \item \texttt{memoria.tar.gz} Originales en formato \LaTeX.
+	\end{itemize}
+\end{itemize}
+
+\subsubsection{Contenido del fichero \texttt{tpcc.tar.gz}}
+Para descomprimir y desempaquetar este fichero desde un terminal unix/linux,
+teclear para descomprimir en el directorio actual:\\
+\texttt{tar -xzvf /ruta.al.fichero/tpcc.tar.gz}
+
+Se obtendrá un directorio \texttt{tpcc/} donde se encuentra el código fuente,
+para más información sobre cómo compilar dicho código fuente, ver el manual de
+la aplicación (pag. \pageref{app:manual}).
+
+\subsubsection{Contenido del fichero \texttt{memoria.tar.gz}}
+Para descomprimir y desempaquetar este fichero desde un terminal unix/linux, 
+teclear para descomprimir en el directorio actual:\\
+\texttt{tar -xzvf /ruta.al.fichero/memoria.tar.gz}
+
+Esta memoria ha sido escrita en \LaTeX, y además ha sido orientada hacia la
+obtención de un documento PDF, por lo que es imposible utilizar la orden
+\texttt{latex} para generar un fichero PS.
+
+\paragraph{Generación de la memoria}
+Para generar un fichero PDF hay que teclear, en el directorio donde se haya
+desempaquetado la memoria:
+\begin{verbatim}
+]$ pdflatex memoria
+]$ bibtex memoria1
+]$ bibtex memoria2
+]$ pdflatex memoria
+]$ pdflatex memoria
+\end{verbatim}
+
+\paragraph{Manejo de ficheros PDF}
+La memoria se entrega en formato PDF (\textit{Portable Document Format}); y para
+acceder al contenido se necesita un visor de ficheros PDF. Una lista de las
+diferentes posibilidades según el sistema operativo, es la siguiente:
+\begin{itemize}
+\item \textit{Adobe Acrobat Reader}: para los sistemas operativos Microsoft Windows, IBM OS/2
+Warp, Palm OS, Pocket PC, Symbian OS, Linux, Sun Solaris, IBM Aix, HP-UX y Mac OS
+7.x -- 10.x . Disponible en:
+\url{http://www.adobe.es/products/acrobat/readstep2.html}.
+\item \textit{xpdf}: para los sistemas operativos con el sistema de ventanas X
+Window. Disponible en: \url{http://www.foolabs.com/xpdf/}.
+\item \textit{kpdf}: forma parte del entorno de escritorio KDE. Disponible en
+\url{http://www.kde.org/}; más información en: \url{http://kpdf.kde.org/}.
+\item \textit{Vista Previa}: disponible en el sistema operativo Mac OS 10.x .
+Más información en: \url{http://www.apple.com/es/macosx/features/pdf/}.
+\end{itemize}
+

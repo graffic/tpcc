@@ -1,0 +1,126 @@
+\documentclass[b5paper,10pt,twoside]{book}
+%\documentclass[a4paper,10pt,twoside]{book}
+\usepackage[spanish]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+\usepackage{tabularx}
+\usepackage{hhline}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{afterpage}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+% ftp://tug.ctan.org/pub/tex-archive/macros/latex/contrib/bibtopic/bibtopic.pdf
+\usepackage{bibtopic}
+%\usepackage{thumbpdf}
+\usepackage{appendix}
+	\renewcommand{\appendixpagename}{Apéndices}
+	\renewcommand{\appendixtocname}{Apéndices}
+% Margenes requeridos
+% http://www.cs.brown.edu/system/software/latex/doc/geometry.pdf
+% ISO B5 - 176x250
+%  Horizontal: 176 = 20+141+15
+%  Vertical: 250 = 15+220+15
+\usepackage[left=2cm,right=1.5cm,top=1.5cm,bottom=1.5cm,includeheadfoot]{geometry}
+% ISO A4 - 210x297
+%  Horizontal: 210 = 20+141+49
+%  Vertical: 297 = 20+220+57
+%\usepackage[left=2cm,right=4.9cm,top=2.0cm,bottom=5.7cm,includeheadfoot]{geometry}
+
+% Un salto de línea después de cada título de una sección parapgraph
+% http://www.texnik.de/space/space.phyml
+\makeatletter
+\renewcommand\paragraph{\@startsection{paragraph}{4}{\z@}%
+	{-3.5ex\@plus -1ex \@minus -.2ex}%
+	{1.5ex \@plus .2ex}%
+	{\normalfont\normalsize\bfseries}}
+\makeatother
+
+\author{A. Javier Gonel Crespo \thanks{Alumno de Ingeniería Técnica en Informáti
+ca de Sistemas. Universidad de Valladolid}}
+\title{Benchmark TPC-C}
+% Ñapas especiales
+\frenchspacing
+\global\emergencystretch = .9\hsize
+% Para que babel no piense que escribimos mal las comas
+\decimalpoint
+
+\begin{document}
+% Titulo bonito
+\thispagestyle{empty}
+\begin{figure}[p]
+\begin{center}
+\includegraphics[width=\textwidth,height=\textheight]{portada/portada-orig.pdf}
+\end{center}
+\end{figure}
+\clearpage
+% Página en blanco
+\thispagestyle{empty}
+\clearpage
+
+% Para los capitulos
+\fancypagestyle{plain}{% 
+\fancyhf{} % clear all header and footer fields 
+\fancyfoot[RO,LE]{\bfseries \thepage} % except the center 
+\renewcommand{\headrulewidth}{0pt} 
+\renewcommand{\footrulewidth}{0.6pt}} 
+
+% Para el resto del documento.
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[RO]{\rightmark}
+\fancyhead[LE]{\leftmark}
+\fancyfoot[RO,LE]{\bfseries \thepage}
+\renewcommand{\chaptermark}[1]{\markboth{\textbf{\thechapter. #1}}{}} % Formato para el capítulo: N. Nombre
+\renewcommand{\sectionmark}[1]{\markright{\textbf{\thesection. #1}}} % Formato para la sección: N.M. Nombre
+\renewcommand{\headrulewidth}{0.6pt} % Ancho de la línea horizontal bajo el encabezado
+\renewcommand{\footrulewidth}{0.6pt} % Ancho de la línea horizontal sobre el pie (que en este ejemplo está vacío)
+\setlength{\headheight}{1.5\headheight} % Aumenta la altura del encabezado en una vez y media
+
+%Contenidos
+\tableofcontents % Tabla de contenido 
+\newpage 
+\listoffigures % Índice de figuras 
+\newpage 
+\listoftables % Índice de tablas 
+\newpage
+
+\input{introduccion}
+\input{fundamentos}
+\input{analisis}
+% Diseño
+\input{dis-arquitectura}
+\input{dis-almacenamiento}
+\input{dis-generador}
+\input{dis-tpcc}
+% Conclusiones
+\input{conclusiones}
+
+\addappheadtotoc
+\appendix
+\input{contenido}
+\input{manual}
+\input{referenciasweb}
+% Bibliografía
+%\renewcommand{\bibname}{Bibliografía}
+\backmatter
+%\markboth{Bibliografía}{Bibliografía}
+%\addcontentsline{toc}{chapter}{Bibliografía}
+\bibliographystyle{abbrv}
+\addtocounter{chapter}{1}
+\chapter{Bibliografía y referencias}
+\renewcommand{\thesection}{\roman{section}} 
+\setcounter{section}{0}
+
+\begin{btSect}{bibliografia} 
+\section{Bibliografía} 
+\btPrintCited
+\end{btSect} 
+
+\begin{btSect}{referencias} 
+\section{Otras referencias}\label{sec:otrasreferencias} 
+\btPrintCited
+\end{btSect} 
+
+\end{document}

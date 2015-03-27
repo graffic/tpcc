@@ -1,0 +1,600 @@
+\chapter{Diseño e implementación}
+En las especificaciones originales del benchmark TPC-C, existen reglas y
+parámetros para realizar un análisis de rendimiento completo: desde la
+herramienta a implementar, hasta plantillas para los documentos que hay que
+presentar así como una explicación detallada de los datos a obtener.
+
+En este caso lo que se va a diseñar e implementar es la herramienta que permite
+obtener un resultado numérico del rendimiento de un sistema con su simple
+ejecución con una configuración concreta.
+
+\section{Diseño de la arquitectura}
+Para explicar el diseño descendente que se ha realizado, se empezará por el
+diagrama de arquitectura, que dará paso a los diferentes subsistemas de la
+aplicación. Ya que la aplicación de primeras tiene dos partes diferenciadas:
+subsistema de medida de rendimiento y subsistema de almacenamiento de datos, el
+trabajo aplicado para dividir lo mejor posible en módulos el programa ha sido
+importante, ya que si no, la cantidad de código acumulada en un solo fichero
+hubiera hecho difícil la búsqueda y solución de problemas, así como casi
+imposible la adaptación a pequeños cambios o actualizaciones.
+
+\subsection{Diseño de los subsistemas}
+Empezaremos con una división funcional de los componentes del sistema agrupados
+en subsistemas. El sistema principal que implementa el benchmark se divide en 3
+subsistemas (Fig. \ref{fig:subsistemas}).
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=10cm]{cap4/subsistemas.pdf}
+\end{center}
+\caption{Diferentes subsistemas del benchmark TPC-C}
+\label{fig:subsistemas}
+\end{figure}
+
+\begin{itemize}
+\item Subsistema generador: Se encarga de generar los datos de \textit{poblado}
+como los datos de los usuarios simulados que al final acaban siendo los datos
+que las \textit{terminales} envían a los servidores para que realicen una
+transacción.
+\item Subsistema TPC-C: es el programa principal del benchmark, que se divide en
+2 componentes:
+	\begin{itemize}
+	\item Administrador: es el encargado de cuidar y preparar el sistema
+	para que los servidores comiencen su trabajo. Realiza las siguientes
+	tareas cortas:
+		\begin{itemize}
+		\item Inicializa el subsistema de almacenamiento.
+		\item Carga el \textit{poblado} generado anteriormente en el
+		subsistema de almacenamiento.
+		\item Lanza los servidores.
+		\item Espera sus estadísticas y las da un formato final.
+		\end{itemize}
+	\item Servidor: se encarga de realizar las transacciones que tiene
+	indicadas en los datos que las \textit{terminales} le han encargado.
+	Trabaja de manera conjunta con el subsistema de almacenamiento: el
+	servidor se encarga de la lógica del negocio, y el almacenamiento de
+	guardar y recuperar los datos.
+	\end{itemize}
+\item Subsistema de almacenamiento: Se encarga de almacenar datos de manera
+genérica y de proporcionar un método rápido de acceso y modificación de los
+mismos. Dado que no siempre las necesidades son las mismas, se emplean 2
+componentes para prestar este servicio:
+	\begin{itemize}
+	\item Árbol B+: proporciona un método de almacenamiento indexado, donde
+	se permite: buscar, insertar, eliminar y modificar; siendo la operación
+	más rápida la de buscar.
+	\item Lista Enlazada: debido a que hay tablas que no tienen clave, este
+	sistema de almacenamiento permite de una manera sencilla almacenar estos
+	datos sin campos clave. Solo permite 2 operaciones: añadir y borrar.
+	\end{itemize}
+En ambos componentes existe una \textit{sincronización} para que múltiples
+procesos o hilos de ejecución puedan acceder a los datos sin interferir entre
+si.
+\end{itemize}
+
+\subsection{Diseño detallado de la arquitectura}
+Existen varios subsistemas y no todos ellos se ejecutan a la vez, ni en el mismo
+proceso, por lo que hace falta un diagrama que explique claramente cómo es el
+funcionamiento habitual del benchmark antes de explicar en detalle los
+fundamentos y la composición de cada subsistema.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=10cm]{cap4/arquitectura.pdf}
+\end{center}
+\caption{Arquitectura del sistema TPC-C}
+\label{fig:arquitectura}
+\end{figure}
+
+En la figura \ref{fig:arquitectura}, se puede observar de manera menos estándar
+(sin usar UML) cómo se distribuye todo el sistema TPC-C en diferentes sistemas y
+procesos, por lo que se va detallar el funcionamiento de los mismos.
+
+
+\begin{enumerate}
+\item \textbf{Proceso Generador:} es el primero que se ejecuta para producir un
+\textit{experimento} que consiste en:
+	\begin{itemize}
+	\item Unos datos de \textit{poblado}, que servirán como datos iniciales
+	a la hora de que los servidores comiencen a funcionar.
+	\item Simula a los usuarios de las terminales, y con ello genera unos
+	datos que son los que recibirán los servidores para realizar las
+	transacciones. Es lo que llamaremos \textit{carga} de trabajo generada
+	por las terminales.
+	\end{itemize}
+El proceso generador necesita además los parámetros de funcionamiento:
+	\begin{itemize}
+	\item La cantidad de \textit{almacenes} para poblar la base de datos.
+	Recordemos que el almacén es la unidad de generación de carga
+	inicial, cada almacén contiene 10 zonas, y cada zona sus clientes
+	pedidos y entradas en el histórico; por lo que al multiplicar el número
+	de almacenes se multiplican también estos datos.
+	\item La cantidad de \textit{servidores} que simultáneamente van a
+	atender peticiones de las terminales. Con este parámetro se generarán
+	diferentes ficheros de \textit{carga}
+	\item Pero para contabilizar esta carga hace falta indicar también el
+	\textit{número de transacciones} que se van a ejecutar en total; según
+	este número, se repartirán esas transacciones entre los diferentes
+	servidores.
+	\end{itemize}
+Por lo que al finalizar la ejecución del proceso generador obtenemos los datos
+de un \textit{experimento} en \textbf{ficheros}, que son:
+	\begin{itemize}
+	\item Datos de poblado del sistema de almacenamiento.
+	\item Número de servidores.
+	\item Carga para dichos servidores.
+	\end{itemize}
+\item \textbf{Proceso TPC-C:} Es el encargado de realizar la medición del
+rendimiento, para ello preparará los datos necesarios para que el sistema pueda
+trabajar.
+	\begin{enumerate}
+	\item Lo primero es ejecutar un \textit{cargador}, que inicializa los
+	sistemas de almacenamiento y los puebla con los datos de poblado. Es una
+	operación repetitiva y no se tiene en cuenta a la hora de medir el
+	rendimiento.
+	\item Luego se prepara la sincronización de los procesos servidores y se
+	\textit{lanzan}, dichos procesos servidores, son unidades de ejecución
+	independientes que según el modelo de paralelización pueden ser hilos de
+	ejecución o procesos.
+	\item Por último, espera a que terminen los servidores, y mediante
+	\textbf{memoria compartida} recoge los datos estadísticos de cada
+	servidor y escribe un fichero con un resumen y una medida de
+	rendimiento.
+	\end{enumerate}
+En este proceso se ejecuta el \textit{subsistema de almacenamiento}, este
+sistema es el mismo entre los procesos TPC-C y servidores gracias a que está
+situado en \textbf{memoria compartida}, por lo que los datos almacenados en la
+fase de carga son los mismos que se utilizarán por los servidores.
+\item \textbf{Proceso servidor:} Pueden existir múltiples procesos servidores,
+pero se explicará el funcionamiento de uno en concreto. Cuando se lanza un
+proceso servidor, este realiza un trabajo cíclico consistente en procesar
+transacciones; este es el orden de operaciones:
+	\begin{enumerate}
+	\item Obtiene una transacción junto con sus datos del fichero de carga.
+	\item La identifica y la realiza.
+	\item Anota la transacción realizada en un área de \textbf{memoria
+	compartida}.
+	\end{enumerate}
+Si bien este proceso parece sencillo, es el que más trabajo necesita para
+realizarse ya que cada transacción lleva implícita una carga de trabajo. También
+es aquí donde se explotan todas las características de multiproceso del sistema
+de almacenamiento mediante un sistema \textit{lector-escritor} que se explicará
+más adelante. Este sistema permite una ordenación de los accesos de tal manera
+que para una tabla, sólo un proceso pueda estar modificándola, pero cuando no se
+está modificando, múltiples procesos puedan estar accediendo a sus datos.
+\end{enumerate}
+
+\subsection{Tecnologías de la implementación}
+Una vez definida la arquitectura, hay que fijar que tecnologías se utilizarán;
+es verdad que definiendo la arquitectura ya se han dicho bastantes de estas
+tecnologías, pero vamos a listar e introducir cada una de ellas.
+
+\subsubsection{Árboles B+}\label{sec:arbolbmasbasico}
+Los árboles B y los árboles B+ \cite{marques01} son casos especiales de árboles de búsqueda. Un
+árbol de búsqueda es un tipo de árbol que sirve para guiar la localización de un
+registro, dado el valor de uno de sus campos. Los índices multinivel 
+pueden considerarse como variaciones de los árboles de
+búsqueda. Cada bloque o nodo del índice multinivel puede tener hasta $p$ valores
+del campo de indexación y $p$  punteros. Los valores del campo de indexación de cada
+nodo guían al siguiente nodo (que se encuentra en otro nivel), hasta llegar al
+bloque del fichero de datos que contiene el registro deseado. Al seguir un
+puntero, se va restringiendo la búsqueda en cada nivel a un subárbol del árbol
+de búsqueda, y se ignoran todos los nodos que no estén en dicho subárbol.
+
+Los árboles de búsqueda difieren un poco de los índices multinivel. Un árbol de
+búsqueda de orden $p$ es un árbol tal que cada nodo contiene como mucho $p-1$  valores
+del campo de indexación y $p$  punteros, colocados de la siguiente manera:
+\begin{equation}
+(P_1,K_1,P_2,K_2,...,P_{q-1},K_{q-1},P_q)
+\end{equation}
+
+Donde:
+\begin{itemize}
+\item $q\leq p$
+\item $P_i$ es un puntero a un nodo hijo.
+\item $K_i$ es un valor de búsqueda o valor clave.
+\end{itemize}
+
+Además se cumple que:
+\begin{enumerate}
+\item Todos los valores de búsqueda son únicos.
+\item Dentro de cada nodo se cumple: $K_1<K_2<...K_{q-1}$
+\item Para todos los valores de $X$ del subárbol al que nos lleva el puntero
+$P_i$, se tiene: 
+	\begin{itemize}
+	\item $K_{i-1}<X<K_i$ para $1<i<q$
+	\item $X<K_i$ para $i=1$
+	\item $K_{i-1}<X$ para $i=q$
+	\end{itemize}
+\end{enumerate}
+
+Al buscar un valor $X$, se sigue el puntero $P_i$ apropiado de acuerdo con las
+3 restricciones del punto 3.  Para insertar valores de búsqueda en el árbol y
+eliminarlos, sin violar las restricciones anteriores, se utilizan algoritmos que
+no garantizan que el árbol de búsqueda esté equilibrado (que todas las hojas
+estén al mismo nivel). Es importante mantener equilibrados los árboles de
+búsqueda porque esto garantiza que no habrá nodos en niveles muy profundos que
+requieran muchos accesos a bloques durante una búsqueda. Además, las
+eliminaciones de registros pueden hacer que queden nodos casi vacíos, con lo que
+hay un desperdicio de espacio importante que también provoca un aumento en el
+número de niveles.
+
+El árbol B es un árbol de búsqueda, con algunas restricciones adicionales, que
+resuelve hasta cierto punto los dos problemas anteriores. Estas restricciones
+adicionales garantizan que el árbol siempre estará equilibrado y que el espacio
+desperdiciado por la eliminación, si lo hay, nunca será excesivo. Los algoritmos
+para insertar y eliminar se hacen más complejos para poder mantener estas
+restricciones. No obstante, la mayor parte de las inserciones y eliminaciones
+son procesos simples, se complican sólo en circunstancias especiales: cuando se
+intenta insertar en un nodo que está lleno o cuando se intenta borrar en un nodo
+que está ocupado hasta la mitad.
+
+\paragraph{Árbol B}
+Un árbol B de orden $p$, se define de la siguiente manera:
+\begin{enumerate}
+\item La estructura de cada nodo tiene la siguiente forma:
+\begin{equation}
+(P_1,(K_1,Pr_1),P_2,(K_2,Pr_2),P_3,(K_3,Pr_3),...P_{q-1},(K_{q-1},Pr_{q-1}),P_q)
+\end{equation}
+Donde:
+	\begin{itemize}
+	\item $q\leq p$
+	\item $P_i$ es un puntero a un nodo hijo.
+	\item $Pr_i$ es un puntero al nodo de datos cuya clave es $K_i$
+	\end{itemize}
+\item Dentro de cada nodo se cumple: $K_1<K_2<...K_{q-1}$
+\item Para todos los valores de $X$ del subárbol al que nos lleva el puntero
+$P_i$, se tiene: 
+	\begin{itemize}
+	\item $K_{i-1}<X<K_i$ para $1<i<q$
+	\item $X<K_i$ para $i=1$
+	\item $K_{i-1}<X$ para $i=q$
+	\end{itemize}
+\item Cada nodo tiene como mucho $p$ punteros a otros nodos del árbol.
+\item Cada nodo excepto el raíz (el primero) y las hojas (los últimos), tiene al
+menos $p/2$ punteros a nodos del árbol. El nodo raíz tiene como mínimo 2
+punteros a nodos del árbol, excepto si es el único nodo.
+\item Un nodo con $q$ punteros a nodos y $q\leq p$, tiene $q-1$ campos de
+indexación o campos clave.
+\item Todos los nodos hoja están al mismo nivel. Los nodos hoja tienen la misma
+estructura que los nodos internos, pero los punteros a nodos del árbol son
+nulos.
+\end{enumerate}
+
+Como se puede observar, en los árboles B todos los valores del campo de
+indexación aparecen alguna vez en algún nivel del árbol, junto con un puntero al
+fichero de datos.
+
+\paragraph{Árbol B+}
+En un árbol B+ los punteros a datos se almacenan sólo en los nodos hoja del
+árbol, por lo cual, la estructura de los nodos hoja difiere de la de los nodos
+internos. Los nodos hoja tienen una entrada por cada valor del campo de
+indexación, junto con un puntero al registro del fichero de datos. Estos nodos
+están enlazados para ofrecer un acceso ordenado a los registros a través del
+campo de indexación. Los nodos hoja de un árbol B+ son similares al primer nivel
+(nivel base) de un índice. Los nodos internos del árbol B+ corresponden a los
+demás niveles del índice. Algunos valores del campo de indexación se repiten en
+los nodos internos del árbol B+ con el fin de guiar la búsqueda.
+
+En un árbol B+ de orden $p$, la estructura de los nodos \textit{internos} es la
+siguiente:
+\begin{enumerate}
+\item Todo nodo interno es de la forma: 
+\begin{equation}
+(P_1,K_1,P_2,K_2,P_3,K_3,...P_{q-1},K_{q-1},P_q)
+\end{equation}
+Donde:
+	\begin{itemize}
+	\item $q\leq p$
+	\item Cada $P_i$ es un puntero a un nodo interno u hoja del árbol.
+	\end{itemize}
+\item Dentro de cada nodo interno se cumple: $K_1<K_2<...K_{q-1}$
+\item Para todos los valores de $X$ del subárbol al que nos lleva el puntero
+$P_i$, se tiene: 
+	\begin{itemize}
+	\item $K_{i-1}<X<K_i$ para $1<i<q$
+	\item $X<K_i$ para $i=1$
+	\item $K_{i-1}<X$ para $i=q$
+	\end{itemize}
+\item Cada nodo interno tiene como mucho $p$ punteros a otros nodos del árbol.
+\item Cada nodo interno excepto el raíz tiene al menos $p/2$ punteros a nodos
+del árbol. El nodo raíz, si es interno, tiene al menos dos punteros a nodos del
+árbol.
+\item Un nodo con $q$ punteros a nodos y $q\leq p$, tiene $q-1$ campos clave.
+\end{enumerate}
+
+La estructura de los nodos \textit{hoja} de un árbol B+ de orden $p$ es la
+siguiente:
+\begin{enumerate}
+\item Todo nodo hoja es de la forma:
+\begin{equation}
+((Pr_1,K_1),(Pr_2,K_2),(Pr_3,K_3),...(Pr_{q-1},K_{q-1}),P_siguiente)
+\end{equation}
+Donde:
+	\begin{itemize}
+	\item $q\leq p$
+	\item Cada $Pr_i$ es un puntero al registro de datos cuya clave es
+	$K_i$.
+	\item $P_siguiente$ Es un puntero al nodo hoja siguiente.
+	\end{itemize}
+\item Cada nodo hoja tiene al menos $p/2$ valores.
+\item Todos los nodos hoja están al mismo nivel.
+\end{enumerate}
+
+Como las entradas en los nodos internos de los árboles B+ contienen valores del
+campo de indexación y punteros a nodos del árbol, pero no contienen punteros a
+los registros del fichero de datos, es posible \textit{empaquetar} más entradas en un
+nodo interno de un árbol B+ que en un nodo similar de un árbol B. Por tanto, si
+el tamaño de bloque (nodo) es el mismo, el orden $p$  será mayor para el árbol B+
+que para el árbol B. Esto puede reducir el número de niveles del árbol B+,
+mejorándose así el tiempo de acceso. Como las estructuras de los nodos internos
+y los nodos hoja de los árboles B+ son diferentes, su orden $p$ puede ser diferente.
+
+Se ha demostrado \cite{marques01} por análisis y simulación que después de un gran número de
+inserciones y eliminaciones aleatorias en un árbol B, los nodos están ocupados
+en un 69\% cuando se estabiliza el número de valores del árbol. Esto también es
+verdadero en el caso de los árboles B+. Si llega a suceder esto, la división y
+combinación de nodos ocurrirá con muy poca frecuencia, de modo que la inserción
+y la eliminación se volverán muy eficientes.
+
+\subsubsection{Lenguaje C}
+Para implementar el benchmark se ha escogido como lenguaje de programación el
+lenguaje C. C es un lenguaje de programación de propósito general que ofrece
+economía sintáctica, control de flujo y estructuras sencillas y un buen conjunto
+de operadores. No es un lenguaje de muy alto nivel y más bien un lenguaje
+pequeño, sencillo y no está especializado en ningún tipo de aplicación. Esto lo
+hace un lenguaje potente, con un campo de aplicación ilimitado y sobre todo, se
+aprende rápidamente. En poco tiempo, un programador puede utilizar la totalidad
+del lenguaje \cite{introc}.
+
+Este lenguaje ha estado estrechamente unido al sistema operativo UNIX, puesto que
+fueron desarrollados conjuntamente. Sin embargo, este lenguaje no está ligado a
+ningún sistema operativo ni a ninguna máquina concreta. Se le suele llamar
+lenguaje de programación de sistemas debido a su utilidad para escribir
+compiladores y sistemas operativos, aunque de igual forma se puede desarrollar
+cualquier tipo de aplicación.
+
+La base del C proviene del BCPL, escrito por Martin Richards, y del B escrito
+por Ken Thompson en 1970 para el primer sistema UNIX en un DEC PDP-7. Estos son
+lenguajes sin tipos, al contrario que el C que proporciona varios tipos de
+datos. Los tipos que ofrece son caracteres, números enteros y en coma flotante,
+de varios tamaños. Además se pueden crear tipos derivados mediante la
+utilización de punteros, vectores, registros y uniones. El primer compilador de
+C fue escrito por Dennis Ritchie para un DEC PDP-11 y escribió el propio sistema
+operativo en C.
+
+C trabaja con tipos de datos que son directamente tratables por el hardware de
+la mayoría de computadoras actuales, como son los caracteres, números y
+direcciones. Estos tipos de datos pueden ser manipulados por las operaciones
+aritméticas que proporcionan los procesadores. No proporciona mecanismos para
+tratar tipos de datos que no sean los básicos, debiendo ser el programador el
+que los desarrolle. Esto permite que el código generado sea muy eficiente y de
+ahí el éxito que ha tenido como lenguaje de desarrollo de sistemas. No
+proporciona otros mecanismos de almacenamiento de datos que no sea el estático y
+no proporciona mecanismos de entrada ni salida. Ello permite que el lenguaje sea
+reducido y los compiladores de fácil implementación en distintos sistemas. Por
+contra, estas carencias se compensan mediante la inclusión de funciones de
+librería para realizar todas estas tareas, que normalmente dependen del sistema
+operativo.
+
+Originariamente, el manual de referencia del lenguaje para el gran público fue
+el libro de Kernighan y Ritchie, escrito en 1977. Es un libro que explica y
+justifica totalmente el desarrollo de aplicaciones en C, aunque en él se
+utilizaban construcciones, en la definición de funciones, que podían provocar
+confusión y errores de programación que no eran detectados por el compilador.
+Como los tiempos cambian y las necesidades también, en 1983 ANSI establece el
+comité X3J11 para que desarrolle una definición moderna y comprensible del C. El
+estándar está basado en el manual de referencia original de 1972 y se desarrolla
+con el mismo espíritu de sus creadores originales. La primera versión de
+estándar se publicó en 1988 y actualmente todos los compiladores utilizan la
+nueva definición. Una aportación muy importante de ANSI consiste en la
+definición de un conjunto de librerías que acompañan al compilador y de las
+funciones contenidas en ellas. Muchas de las operaciones comunes con el sistema
+operativo se realizan a través de estas funciones. Una colección de ficheros de
+encabezamiento, headers, en los que se definen los tipos de datos y funciones
+incluidas en cada librería. Los programas que utilizan estas bibliotecas para
+interactuar con el sistema operativo obtendrán un comportamiento equivalente en
+otro sistema.
+
+\subsubsection{PARMACS}
+Estas macros implementan código que permite concurrencia y sincronización en
+múltiples arquitecturas, para que las aplicaciones sean programadas de manera
+independiente y puedan ser trasladadas a otros sistemas simplemente cambiando la
+implementación de dichas macros.
+
+Las macros han sido desarrolladas en el Argonne National Laboratory y son
+empleadas usando el preprocesador m4. Las especificaciones originales de estas
+macros se pueden encontrar en \cite{lusk87} \cite{parmacs}. PARMACS ofrece unas
+primitivas de sincronización básicas, creación paralela de procesos y asignación
+de memoria compartida; existen muchas implementaciones para diferentes sistemas
+como Encore Multimax, SGI, Alliant y otros, que se encuentran disponibles al
+público.
+
+Para las pruebas y simulaciones se ha utilizado una versión de PARMACS
+implementada usando hilos POSIX en C. Aun así, y de forma general estás son las
+funciones que han sido usadas, dentro del extenso catálogo de PARMACS:
+\begin{itemize}
+\item \textit{MAIN\_INITENV(int numproc)}: Esta macro inicializa
+el entorno de PARMACS. El primer argumento es opcional e indica el número máximo
+de procesos. Se utiliza en la función principal del programa para inicializar el
+sistema de control de procesos.
+
+\item \textit{MAIN\_END()}: Esta macro finaliza el entorno PARMACS, y debe de
+ser lo último que ejecute la aplicación.
+
+\item \textit{MAIN\_ENV()}: Esta macro declara las variables y las definiciones
+de las estructuras utilizadas por el entorno PARMACS. Debe aparecer sólo una vez
+en la aplicación, al principio del fichero de código principal. En el caso de la
+implementación mediante hilos POSIX, no requiere ningún parámetro
+
+\item \textit{EXTERN\_ENV()}: Esta macro contiene definiciones de estructuras
+utilizadas, y es útil para el resto de ficheros de código que, sin ser el
+principal, utilicen las macros y por lo tanto necesiten al menos tener
+constancia de como se definen la estructuras que se usan.
+
+\item \textit{CLOCK(int reloj)}: Esta macro almacena en la variable reloj la
+fecha actual, las unidades en esta implementación son los segundos transcurridos
+desde el 1 de enero de 1970.
+
+\item \textit{CREATE(void (*proc)(void))}: Esta macro crea un nuevo proceso que
+ejecutará la función indicada por ``proc''. El nuevo proceso podrá acceder a toda
+aquella memoria que este compartida.
+
+\item \textit{WAIT\_FOR\_END()}: Esta macro bloquea el proceso que la utiliza
+hasta que hayan finalizado todos los procesos lanzados con CREATE. En esta
+implementación no lleva argumentos, pero en otras se suele indicar el número de
+procesos por los que esperar.
+
+\item \textit{G\_MALLOC(int tam)}: Asigna ``tam'' bytes de memoria compartida y
+devuelve un puntero a dicha zona. G\_MALLOC termina con un punto y coma por lo
+que no puede usarse con expresiones.
+
+\item \textit{G\_FREE(void *ptr)}: Libera la memoria asignada con G\_MALLOC y
+apuntada por el puntero ``ptr''.
+\item \textit{LOCKDEC(lk)}: Declara una variable de tipo bloqueo con el nombre
+``lk''.
+\item \textit{LOCKINIT(lock lk)}: Esta macro inicializa una variable declarada como
+tipo bloqueo, de tal manera que el primer proceso que la utilice llamando a
+LOCK(lk), pueda entrar en la sección crítica y el resto se queden a la espera.
+\item \textit{LOCK(lock lk)}: Esta macro entra en una sección crítica protegida por
+la variable lk; de tal manera que si el proceso que la ejecuta es el primero,
+puede entrar sin problemas; pero si ya existe otro proceso dentro de la sección
+crítica, se queda a la espera.
+\item \textit{UNLOCK(lock lk)}: Esta macro sale de una sección crítica
+controlada por la variable lk. Si hay algún proceso bloqueado por esta variable,
+uno de ellos es desbloqueado.
+
+\item \textit{BARDEC(b)}: Esta macro declara una variable de tipo barrera.
+\item \textit{BARINIT(barrier b)}: Esta macro inicializa una variable del tipo
+barrera. Esta operación sólo se necesita una vez al inicio de la aplicación.
+\item \textit{BARRIER(barrier b, int n)}: Un proceso que ejecute esta macro, se
+queda bloqueado hasta que ``n'' procesos la ejecuten con el mismo identificador de
+barrera ``b''; en ese momento todos los procesos son desbloqueados.
+\item \textit{GET\_PID()}: Esta macro devuelve el identificador numérico del
+proceso/hilo que lo ejecuta.
+\end{itemize}
+
+Estas macros se integran en el programa en C, si bien hay más macros dentro del
+conjunto PARMACS, sólo se han explicado las que se utilizan en esta aplicación.
+Como se ha podido observar, la comunicación entre los procesos es mediante
+\textit{memoria compartida}.
+
+El hecho de usar para las pruebas iniciales una implementación de PARMACS
+mediante hilos POSIX, ayudará a la aplicación a ser portada a RSIM con pocos o
+ningún cambio.
+
+\subsubsection{Ayuda en la depuración de errores}\label{sec:debugh}
+Para controlar y observar de manera detallada la ejecución de un programa, asi
+como para buscar errores que se nos pueden presentar inesperadamente, existen
+los denominados \textit{debuggers}. Los debuggers son aplicaciones que preparan
+un entorno de ejecución controlado, donde poder observar, incluso paso a paso,
+cómo funciona nuestra aplicación.
+
+Pero los debuggers no son del todo automáticos, hay que indicarles qué observar,
+y en algunos casos indicarles como observar ciertas partes de nuestro programa;
+por lo que puede ser muy tedioso estár informado en todo momento de muchos
+valores a lo largo de la ejecución del programa.
+
+Uno de los métodos más simples para informar de lo que está sucediendo en cada
+punto importante de la aplicación, es imprimir por pantalla información
+detallada de los datos que está manejando la aplicación en un momento dado. Esto
+no es siempre deseable, ya que no siempre nos interesa la información de todos
+los subsistemas de la aplicación.
+
+Para implementar la funcionalidad de salida por pantalla restringiendo dicha
+salida a uno o varios módulos concretos, se ha implementado un simple sistema de
+ayuda a la depuración de errores mediante macros del preprocesador de C. El
+sistema está definido en el fichero \textit{debug.h}, y su funcionamiento es muy
+sencillo: Si a la hora de compilar un módulo, está definida la constante
+\texttt{DEBUG} dicho modulo se compilará con instrucciones que mostrarán datos
+detallados del estado interno en el momento de la ejecución.
+
+Cada módulo, utiliza las siguientes primitivas:
+\begin{itemize}
+\item \texttt{DEBUGS(\ldots)} Se redefine la funcion DEBUGS como \textit{puts},
+por lo que utiliza la misma declaración que puts. La funcionalidad de puts
+consiste en mostrar por pantalla una cadena de texto.
+\item \texttt{DEBUGF(\ldots)} Se redefine la funcion DEBUGF como
+\textit{printf}, por lo que utiliza la misma declaración que printf. Esta
+función permite imprimir una cadena de texto con un cierto formato donde
+intervienen uno o más parámetros.
+\end{itemize}
+
+Con estas dos macros, todos los módulos pueden ofrecer una salida por pantalla,
+y si se observa el código fuente se encontrará que son usadas de manera
+habitual. Hay que ser cuidadoso a la hora de activar la salida por pantalla en
+algunos módulos, ya que puede degradar en gran medida el rendimiento de la
+aplicación.
+
+\subsubsection{Otras tecnologías de la implementación}
+Otras tecnologías que se han empleado para la realización de la implementación
+del benchmark TPC-C:
+\begin{itemize}
+\item \textit{Listas Enlazadas}: Una lista enlazada es una colección de 
+elementos o nodos, en donde cada nodo contiene unos datos y un enlace al nodo 
+siguiente.
+\item Preprocesador de macros \textit{GNU m4}: para expandir las macros PARMACS en
+los ficheros de código fuente.(\url{http://www.gnu.org/software/m4/})
+\item \textit{GNU make}: para automatizar la traducción de código con macros
+PARMACS a código c, y la generación de un fichero ejecutable.
+(\url{http://www.gnu.org/software/make/})
+\item \textit{Doxygen}: para la estandarización y generación de documentación
+del código fuente. (\url{http://www.doxygen.org/})
+\end{itemize}
+
+\subsection{Organización del código fuente}
+El esquema de subsistemas descrito anteriormente se refleja en la organización del código fuente, ya
+que a no ser que cada subsistema fuera extremadamente sencillo, el no aplicarlo
+no ya en la organización de las funciones sino en el código fuente, haría del
+proyecto un ``objeto'' muy difícil de manejar.
+
+\begin{figure}[tb]
+\begin{center}
+\includegraphics[width=\linewidth]{cap4/diagrama-dependencias.pdf}
+\end{center}
+\caption{Diagrama de dependencias entre módulos.}
+\label{fig:diagrama-dependencias}
+\end{figure}
+
+\begin{itemize}
+\item \textbf{Subsistema de almacenamiento}: que incluye los componentes
+	\begin{itemize}
+	\item Componente: \textit{Árbol B+}.
+		\begin{itemize}
+		\item Interfaz: \texttt{arbolbmas.h}
+		\item Implementación: \texttt{arbolbmas.parmacs.c
+		readwrite.parmacs.c}
+		\item Otras cabeceras: \texttt{arbolbmas-priv.h
+		readwrite.parmacs.h}
+		\end{itemize}
+	\item Componente: \textit{Lista enlazada}
+		\begin{itemize}
+		\item Interfaz: \texttt{listaenlazada.parmacs.h}
+		\item Implementación: \texttt{listaenlazada.parmacs.c}
+		\end{itemize}
+	\end{itemize}
+\item \textbf{Subsistema TPC-C}
+	\begin{itemize}
+	\item Componente \textit{Administrador}
+		\begin{itemize}
+		\item Implementación: \texttt{tpcc.parmacs.c cargador.c comparadores.c}
+		\item Otras cabeceras: \texttt{registros.h cargador.h}
+		\end{itemize}
+	\item Componente \textit{Servidor}
+		\begin{itemize}
+		\item Interfaz {transacciones.h}
+		\item Implementación {transacciones.c tpcc.parmacs.c}
+		\end{itemize}
+	\end{itemize}
+\item \textbf{Subsistema Generador} sólo con un componente: \textit{Generador}
+	\begin{itemize}
+	\item Interfaz: \texttt{terminal.h}
+	\item Implementación: \texttt{generador.c terminal.c basicgen.c}
+	\end{itemize}
+\end{itemize}
+
+Las dependencias entre los diferentes módulos en los que está dividio el código
+fuente asi como el subsistema al que pertenecen, se pueden observar en la figura
+\ref{fig:diagrama-dependencias}.
+
+

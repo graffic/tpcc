@@ -1,0 +1,1542 @@
+\chapter{Análisis del sistema TPC-C}
+\section{Requisitos}\label{sec:requisitos}
+Normalmente en un análisis de requisitos se recogen las necesidades del proyecto
+y se organizan de tal manera que se obtienen una serie de requisitos funcionales y
+no funcionales. En el caso de un estándar ya escrito, los requisitos vienen ya
+descritos en el documento del estándar.
+
+Pueden existir requisitos que no se vayan a implementar; pero aquí se plantearán
+y se analizarán las especificaciones del benchmark TPC-C, por lo que puede que
+haya ciertos aspectos que aunque debieran de estar en un diseño se presenten en
+este análisis.
+
+El análisis está realizado en base a las especificaciones del \textit{TPC
+benchmark C} con versión 5.2 de diciembre del 2003, que se pueden encontrar en
+\url{http://www.tpc.org}
+
+\subsection{Descripción general}
+El benchmark TCP-C se centra en analizar el rendimiento de entornos OLTP, por lo
+que se centra en un ejemplo lo más general posible basado en la actividad de una
+ empresa de distribución a gran escala, con el propósito de analizar las
+características principales de una aplicación de este tipo a la vez que nos
+centramos en un conjunto más reducido de operaciones, y evitar analizar ciertas
+operaciones que son poco utilizadas o los recursos que utilizan no son de
+interés.
+
+La empresa que vamos a analizar con este benchmark es un distribuidor mayorista
+que dispone de una serie de almacenes distribuidos geográficamente; cada almacén
+da servicio a 10 zonas, y en cada zona se sirve a 3000 clientes. También, un
+almacén debe de controlar las existencias de 100.000 productos vendidos por la
+empresa.
+
+Los clientes contactan con la empresa para realizar pedidos o consultar su
+estado; estos pedidos están compuestos de una media de 10 elementos distintos, y
+de un 1\% de estos elementos no se dispone de existencias en el almacen local
+teniéndose que encargar a otro almacén. Este sistema también se usa para anotar
+los pagos de los clientes, procesar los pedidos y observar las existencias de
+los productos para anticiparse a la escasez de estos.
+
+\subsection{Entidades y relaciones de la base de datos}
+Los componentes de la base de datos del TPC-C son 9 tablas relacionadas entre
+si, cuya estructura podemos observar en la figura \ref{figer}. No se indican los
+atributos de cada entidad ya que serán detallados más tarde junto con el tipo de
+atributo y la clave de la entidad.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=\textwidth]{cap3/er.pdf}
+\caption{Diagrama entidad-relación del sistema de almacenamiento}
+\label{figer}
+\end{center}
+\end{figure}
+\subsubsection{Relaciones}
+Como se puede ver la mayoría de relaciones son de entidad débil, y muchas
+entidades dependen de otras; se puede decir que las únicas entidades que siempre
+perduran son los almacenes y los productos, así como el histórico que es
+simplemente un historial de operaciones realizadas.
+\begin{itemize}
+\item Un \textit{almacén} está compuesto de 10 \textit{zonas}, por lo que zona
+es entidad débil de almacén.
+\item Una \textit{zona} tiene asociados \textit{clientes} y \textit{pedidos};
+como antes, clientes y pedidos se convierten en entidades débiles que dependen
+de zona.
+\item Un \textit{cliente encarga pedidos} y esos pedidos los encarga en una zona
+determinada (la suya u otra) por lo que en el \textit{histórico} se almacenan
+tanto los datos del cliente que realiza el pedido como los de la zona donde se
+ha realizado el pedido.
+\item Un \textit{pedido} puede ser de tipo \textit{nuevo pedido}, que indica que
+aun no se ha enviado al cliente.
+\item El \textit{pedido} se compone de múltiples \textit{líneas de pedido}, por
+lo que dichas líneas son entidades débiles de pedido.
+\item Cada \textit{línea de pedido} indica un producto y su cantidad pero se
+relaciona con \textit{productos} a través de \textit{existencias}.
+\item Las \textit{existencias} indican la cantidad de cada \textit{producto} que
+resta en un \textit{almacén}.
+\end{itemize}
+
+\subsubsection{Tipos de atributos}
+Los tipos de atributos empleados para describir los atributos de las entidades de la base de datos son los siguientes:
+\begin{itemize}
+\item\textbf{N Identificadores Únicos}: Un atributo que es capaz de almacenar
+cualquier identificador (ID) dentro de un conjunto mínimo de N identificadores
+únicos, independientemente de la representación real del atributo: binario,
+decimal, letras, etc.
+\item\textbf{Texto de tamaño variable, N}: El atributo debe ser capaz de
+almacenar cualquier cadena de caracteres de longitud variable con una longitud
+máxima de N caracteres. Si el atributo es almacenado como una cadena de longitud
+fija, y su longitud es más corta que N, se debe rellenar con espacios.
+\item\textbf{Texto de tamaño fijo, N}: El atributo debe ser capaz de almacenar
+cualquier cadena de caracteres de longitud N fija.
+\item\textbf{Fecha y hora}: El atributo es capaz de almacenar una fecha entre el
+1 de Enero de 1900 y el 31 de Diciembre de 2100 con una resolución de al menos
+un segundo.
+\item\textbf{Numero, N dígitos}: El atributo debe ser capaz de almacenar
+cualquier valor de N dígitos decimales. Para el caso de valores monetarios,
+tiene que asegurarse la precisión en los decimales de la unidad más pequeña de
+dinero: en el caso de euros, la precisión mínima está en 1 céntimo.
+\item\textbf{Nulo}: significa fuera del rango de los valores aceptados para un
+atributo conocido además de ser siempre el mismo valor para ese atributo. 
+\end{itemize} 
+
+En las tablas, los atributos tendrán una de estas definiciones, para definir que son capaces de contener; esto no implica ninguna dependencia con la implementación física a utilizar más tarde cuando se implemente el sistema.
+
+\subsubsection{Entidades}
+Dado el diagrama relacional anterior, y listados los tipos de atributos de los
+que disponemos, vamos a listar todas las entidades con sus atributos y sus
+campos clave.
+% Definicion de las tablas sql
+\newlength{\lineaparrafo}
+\setlength{\lineaparrafo}{\linewidth}
+\addtolength{\lineaparrafo}{-15.1pt}
+\newenvironment{tablasql}
+	{\tabularx{\lineaparrafo}{|l|l|X|}
+	\hline
+	\textbf{Nombre del campo} & \textbf{Tipo de campo} & \textbf{Comentarios} \\
+	\hline  \hline}
+	{\endtabularx}
+
+\paragraph{Almacén (WAREHOUSE)}
+Ver cuadro \ref{tab:desc-almacen}.
+\begin{table}
+\begin{tablasql}
+W\_ID & 2*W identificadores únicos & Siendo W el número de almacenes\\
+W\_NAME & Texto de tamaño variable, 10 & \\
+W\_STREET\_1 & Texto de tamaño variable, 20 & \\
+W\_STREET\_2 & Texto de tamaño variable, 20 & \\
+W\_CITY & Texto de tamaño variable, 20 &\\
+W\_STATE & Texto de tamaño fijo, 2 &\\
+W\_ZIP & Texto de tamaño fijo 9 &\\
+W\_TAX & Número, 4 dígitos & Impuestos de ventas \\
+W\_YTD & Número,  12 dígitos & Balance total anual \\
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: W\_ID} \\
+\hline 
+\end{tablasql} 
+\caption{Descripción de la tabla Almacén}
+\label{tab:desc-almacen}
+\end{table}
+
+\paragraph{Zona (DISTRICT)}
+Ver cuadro \ref{tab:desc-zona}.
+\begin{table}
+\begin{tablasql}
+D\_ID & 20 identificadores únicos & 10 poblados por almacén\\
+D\_W\_ID & 2*W identificadores únicos&\\
+D\_NAME & Texto de tamaño variable, 10&\\
+D\_STREET\_1 &  Texto de tamaño variable, 20&\\
+D\_STREET\_2 &Texto de tamaño variable, 20&\\
+D\_CITY & Texto de tamaño variable, 20&\\
+D\_STATE & Texto de tamaño fijo, 2 &\\
+D\_ZIP & Texto de tamaño fijo 9 &\\
+D\_TAX & Número, 4 dígitos & Impuestos de ventas \\
+D\_YTD & Número,  12 dígitos & Balance total anual\\
+D\_NEXT\_O\_ID & 10.000.000 identificadores únicos&Siguiente número de orden disponible\\
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: D\_ID, D\_W\_ID} \\
+\multicolumn{3}{|l|}{(D\_W\_ID) clave foránea de Almacén (W\_ID)}\\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Zona}
+\label{tab:desc-zona}
+\end{table}
+
+\paragraph{Cliente (CUSTOMER)}
+Ver cuadro \ref{tab:desc-cliente}.
+\begin{table}
+\begin{tablasql}
+C\_ID     & 96.000 identificadores únicos & 3.000 poblados por zona\\
+C\_D\_ID  & 20 identificadores únicos & \\
+C\_W\_ID  & 2*W identificadores únicos & \\
+C\_FIRST  & Texto de tamaño variable, 16 & \\
+C\_MIDDLE & Texto de tamaño fijo, 2 & \\
+C\_LAST   & Texto de tamaño variable, 16 & \\
+C\_STREET\_1 & Texto de tamaño variable, 20 & \\
+C\_STREET\_2 & Texto de tamaño variable, 20 & \\
+C\_CITY  & Texto de tamaño variable, 20 & \\
+C\_STATE & Texto de tamaño fijo, 2 & \\
+C\_ZIP   & Texto de tamaño fijo, 9 & \\
+C\_PHONE & Texto de tamaño fijo 16 & \\
+C\_SINCE & Fecha y hora & \\
+C\_CREDIT        & Texto de tamaño fijo 2 & ``GC''=bueno, ``BC''=malo \\
+C\_CREDIT\_LIM   & Número, 12 dígitos & \\
+C\_DISCOUNT      & Número, 4 dígitos & \\
+C\_BALANCE       & Número con signo, 12 dígitos & \\
+C\_YTD\_PAYMENT  & Número, 12 dígitos & \\
+C\_PAYMENT\_CNT  & Número, 4 dígitos & \\
+C\_DELIVERY\_CNT & Número, 4 dígitos & \\
+C\_DATA          & Texto de tamaño variable, 500 & Información variada \\
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: C\_W\_ID, C\_D\_ID, C\_ID} \\
+\multicolumn{3}{|l|}{(C\_W\_ID, C\_D\_ID) clave foránea de Zona (D\_W\_ID, D\_ID)}\\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Cliente}
+\label{tab:desc-cliente}
+\end{table}
+
+\paragraph{Histórico (HISTORY)}
+Ver cuadro \ref{tab:desc-historico}.
+\begin{table}
+\begin{tablasql}
+H\_C\_ID    & 96.000 identificadores únicos & \\
+H\_C\_D\_ID & 20 identificadores únicos & \\  
+H\_C\_W\_ID & 2*W identificadores únicos & \\
+H\_D\_ID  & 20 identificadores únicos & \\
+H\_W\_ID  & 2*W identificadores únicos & \\
+H\_DATE   & Fecha y hora & \\
+H\_AMOUNT & Numero, 6 dígitos & \\
+H\_DATA   & Texto de tamaño variable, 24 & Información variada \\
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: ninguna, en este contexto no es necesario identificar únicamente a cada tupla.} \\
+\multicolumn{3}{|l|}{(H\_C\_W\_ID, H\_C\_D\_ID, H\_C\_ID) clave foránea de Cliente (C\_W\_ID, C\_D\_ID, C\_ID)}\\
+\multicolumn{3}{|l|}{(H\_W\_ID, H\_D\_ID) clave foránea de Almacén (D\_W\_ID, D\_ID)}\\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Histórico}
+\label{tab:desc-historico}
+\end{table}
+
+\paragraph{Nuevo-Pedido (NEW-ORDER)}
+Ver cuadro \ref{tab:desc-nuevopedido}.
+\begin{table}
+\begin{tablasql}
+NO\_O\_ID & 10.000.000 identificadores únicos & \\  
+NO\_D\_ID & 20 identificadores únicos & \\  
+NO\_W\_ID & 2*W identificadores únicos & \\
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: NO\_W\_ID, NO\_D\_ID, NO\_O\_ID} \\
+\multicolumn{3}{|l|}{(NO\_W\_ID, NO\_D\_ID, NO\_O\_ID) clave foránea de Pedido (O\_W\_ID, O\_D\_ID, O\_ID)}\\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Nuevo-Pedido}
+\label{tab:desc-nuevopedido}
+\end{table}
+
+\paragraph{Pedido (ORDER)}
+Ver cuadro \ref{tab:desc-pedido}.
+\begin{table}
+\begin{tablasql}
+O\_ID    & 10.000.000 identificadores únicos & \\
+O\_D\_ID &20 identificadores únicos & \\
+O\_W\_ID &2*W identificadores únicos & \\
+O\_C\_ID &96.000 identificadores únicos & \\
+O\_ENTRY\_D & Fecha y hora & \\
+O\_CARRIER\_ID &10 identificadores únicos o nulo & \\  
+O\_OL\_CNT & Número, 2 dígitos & De 5 a 15 líneas de pedido \\ 
+O\_ALL\_LOCAL & Número, 1 dígito & \\
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: O\_W\_ID, O\_D\_ID, O\_ID} \\
+\multicolumn{3}{|l|}{(O\_W\_ID, O\_D\_ID, O\_C\_ID) clave foránea de (C\_W\_ID, C\_D\_ID, C\_ID)}\\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Pedido}
+\label{tab:desc-pedido}
+\end{table}
+
+\paragraph{Línea-Pedido (ORDER-LINE)}
+Ver cuadro \ref{tab:desc-lineapedido}.
+\begin{table}
+\begin{tablasql}
+OL\_O\_ID  & 10.000.000 identificadores únicos & \\ 
+OL\_D\_ID  & 20 identificadores únicos & \\  
+OL\_W\_ID  & 2*W identificadores únicos & \\  
+OL\_NUMBER & 15 identificadores únicos & \\ 
+OL\_I\_ID  & 200.000 identificadores únicos & \\
+OL\_SUPPLY\_W\_ID & 2*W identificadores únicos & \\  
+OL\_DELIVERY\_D   & Fecha y hora o nulo & \\
+OL\_QUANTITY      & Número, 2 dígitos & \\  
+OL\_AMOUNT        & Número, 6 dígitos  & \\
+OL\_DIST\_INFO    & Texto de tamaño fijo, 24 & \\  
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: OL\_W\_ID, OL\_D\_ID, OL\_O\_ID, OL\_NUMBER} \\
+\multicolumn{3}{|l|}{(OL\_W\_ID, OL\_D\_ID, OL\_O\_ID) clave foránea de Pedido (O\_W\_ID, O\_D\_ID, O\_ID)}\\
+\multicolumn{3}{|l|}{(OL\_SUPPLY\_W\_ID, OL\_I\_ID) clave foránea de Existencias (S\_W\_ID, S\_I\_ID)}\\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Línea-Pedido}
+\label{tab:desc-lineapedido}
+\end{table}
+
+\paragraph{Producto (ITEM)}
+Ver cuadro \ref{tab:desc-producto}.
+\begin{table}
+\begin{tablasql}
+I\_ID     & 200.000 identificadores únicos & Poblado con 100.000 productos \\ 
+I\_IM\_ID & 200.000 identificadores únicos & Identificador de imagen asociada \\ 
+I\_NAME   & Texto de tamaño variable, 24 & \\
+I\_PRICE  & Número, 5 dígitos  & \\
+I\_DATA   & Texto de tamaño variable, 50 & Nombre de la marca \\
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: I\_ID} \\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Producto}
+\label{tab:desc-producto}
+\end{table}
+
+\paragraph{Existencias (STOCK)}
+Ver cuadro \ref{tab:desc-existencias}.
+\begin{table}
+\begin{tablasql}
+S\_I\_ID    & 200.000 identificadores únicos & 100.000 poblados por almacén \\ 
+S\_W\_ID    & 2*W identificadores únicos & \\
+S\_QUANTITY & Número, 4 dígitos  & \\
+S\_DIST\_01 & Texto de tamaño variable, 24 & \\
+S\_DIST\_02 & Texto de tamaño variable, 24 & \\
+S\_DIST\_03 & Texto de tamaño variable, 24 & \\
+S\_DIST\_04 & Texto de tamaño variable, 24 & \\
+S\_DIST\_05 & Texto de tamaño variable, 24 & \\
+S\_DIST\_06 & Texto de tamaño variable, 24 & \\
+S\_DIST\_07 & Texto de tamaño variable, 24 & \\
+S\_DIST\_08 & Texto de tamaño variable, 24 & \\
+S\_DIST\_09 & Texto de tamaño variable, 24 & \\
+S\_DIST\_10 & Texto de tamaño variable, 24 & \\
+S\_YTD & Número, 8 dígitos & \\  
+S\_ORDER\_CNT & Número, 4 dígitos & \\ 
+S\_REMOTE\_CNT & Número, 4 dígitos & \\
+S\_DATA & Texto de tamaño variable, 50 & Información variada \\ 
+\hline \hline
+\multicolumn{3}{|l|}{Clave primaria: S\_W\_ID, S\_I\_ID} \\
+\multicolumn{3}{|l|}{(S\_W\_ID) clave foránea de Almacén (W\_ID)}\\
+\multicolumn{3}{|l|}{(S\_I\_ID) clave foránea de Producto (I\_ID)}\\
+\hline
+\end{tablasql}
+\caption{Descripción de la tabla Existencias}
+\label{tab:desc-existencias}
+\end{table}
+
+\section{Transacciones}\label{sec:transacciones}
+\subsection{Introducción}
+Vamos a utilizar ciertos términos y funciones estadísticas que conviene definir
+antes de explicar detalladamente qué trabajos se van a realizar sobre la base de
+datos.
+\begin{itemize}
+\item \textbf{Transacción:} Hablamos de transacción como la unidad de trabajo de nuestro sistema, aunque cada transacción se divide en múltiples operaciones en la base de datos.
+\item \textbf{Rango:} Especificamos un rango de valores entra a y b como [a..b]
+\item \textbf{Elemento aleatorio uniforme:} entre un rango de valores [a..b], como un elemento seleccionado de manera independiente y uniforme entre a y b, ambos incluidos.
+\item \textbf{Elemento aleatorio no-uniforme:} también representado por la
+función NURAND(X,a,b), un número aleatorio entre un rango de valores [a..b],
+seleccionado de manera no uniforme. La fórmula utilizada para su cálculo es:
+\texttt{NURAND(A, x, y)=( ((random(0, A) | random(x, y) ) + C) modulo (y - x +
+1) ) + x} donde:
+	\begin{itemize}
+	\item \textbf{a | b} Es la operación lógica OR entre los bits de a y b.
+	\item \textbf{random([a..b])} Es un número aleatorio entre a y b.
+	\item \textbf{La constante A} Depende del rango [a..b], cuyo valor será:
+		\begin{itemize}
+		\item Para el rango [0..999], usando en C\_LAST: A=255
+		\item Para el rango [0..3000], usando en C\_ID: A=1023
+		\item Para el rango [0..100000], usando en OL\_I\_ID: A=8191
+		\end{itemize}
+	\item \textbf{La constante C} Se encuentra dentro del rango [0..A], se elige aleatoriamente en tiempo de ejecución, y puede ser variada sin alterar el rendimiento, aunque debe usarse la misma constante C durante toda la ejecución de la prueba.
+	Las normas para tener una buena constante C, son las siguientes:
+		\begin{itemize}
+		\item Llamemos C-Load a la constante C usada para generar C\_LAST cuando se pobló la base de datos.
+		\item Llamemos C-Run la constante C usada para generar C\_LAST en ejecución.
+		\item Obtenemos el valor C-Delta como el valor absoluto de la diferencia entre C-Load y C-Run.
+		\item El valor de C-Delta debe estar en el rango de [65..119] excepto los valores 96 y 112.
+		\end{itemize}
+	\end{itemize}
+\item \textbf{Aplicación:} Es el software que, no formando parte del incluido en el sistema de prueba, sirve para implementar los perfiles de transacción que se especifican en el estándar TPC-C; desde procedimientos, estructuras hasta restricciones de integridad referencial (según el sistema de almacenamiento que se use).
+\item \textbf{Terminal:} Se refiere al dispositivo capaz de mostrar caracteres y de recoger las entradas del usuario; dicho dispositivo no debe tener ningún conocimiento de la aplicación excepto el formato de los campos y su posición en la terminal.
+\end{itemize}
+
+\subsection{Nuevo pedido}
+La transacción de \emph{Nuevo Pedido} consiste en introducir un pedido completo
+en el sistema. Es una operación con una carga media de lectura y escritura; y
+dado que es una de las más frecuentes, es el núcleo de la carga de trabajo, e
+intenta simular un comportamiento de carga variable en un sistema real.
+\subsubsection{Datos de entrada}\label{sec:nuevopedido-datosdeentrada}
+\begin{itemize}
+\item El número de almacén local (W\_ID) permanece constante durante la transacción.
+\item El número de la zona (D\_ID) donde realizar el pedido es aleatorio entre [1..10]
+\item El número de líneas de pedido (O\_OL\_CNT) es aleatorio entre [5..15], con
+una media de 10 líneas.
+\item Para cada línea de pedido:
+	\begin {enumerate} 
+	\item Se selecciona un número de producto entre 1 y 10000 para OL\_I\_ID con una distribución NURAND(8191,1,100000).
+	\item Para el almacén que provee ese producto (OL\_SUPPLY\_W\_ID), el
+	99\% de las veces es el almacén local, pero un 1\% es otro almacén
+	distinto. Esto se puede solucionar fácilmente con un número aleatorio
+	entre [1..100], de tal manera que si ese número es 1, se escoja un
+	almacén local (OL\_SUPPLY\_W\_ID=W\_ID) y en el resto de casos el
+	almacén remoto (OL\_SUPPLY\_W\_ID es aleatorio entre los almacenes
+	restantes).
+	\item Una cantidad de producto (OL\_QUANTITY) es seleccionada aleatoriamente entre [1 ..10].
+	\end{enumerate}
+\item Una fecha para el pedido (O\_ENTRY\_D), usando la fecha actual del sistema.
+\end{itemize}	
+
+Hay que recordar que puede haber pedidos \textbf{locales}: aquellos en los que el almacén desde donde se realiza el pedido (O\_W\_ID) es igual al almacén que provee los productos (OL\_SUPPLY\_W\_ID); y \textbf{remotos}: en los que no coinciden.
+
+\subsubsection{Perfil de la transacción}\label{sec:nuevopedido-perfil}
+
+Resumen de acciones lectura/escritura a realizar:
+\begin{itemize}
+\item \textbf{Lectura}
+	\begin{itemize}
+	\item Almacén (WAREHOUSE), mediante W\_ID (clave)
+	\item Zona (DISCTRICT), mediante D\_W\_ID, D\_ID (clave)
+	\item Cliente (CUSTOMER), mediante C\_W\_ID, C\_D\_ID, C\_ID (clave)
+	\item Producto (ITEM), mediante I\_ID (clave)
+	\item Existencias (STOCK), mediante S\_I\_ID, S\_W\_ID (clave)
+	\end{itemize}
+\item \textbf{Escritura}: inserción y actualización
+	\begin{itemize}
+	\item Nueva inserción en nuevo pedido (NEW\_ORDER)
+	\item Nueva inserción en pedido (ORDER)
+	\item Actualización de zona (DISTRICT)
+	\item Actualización de cliente (CUSTOMER)
+	\item Actualización de existencias (STOCK)
+	\item Nueva inserción en línea de pedido (ORDER\_LINE)
+	\end{itemize}
+\end{itemize}
+
+Para un número de almacén (W\_ID), número de zona (D\_W\_ID, D\_ID), número de
+cliente (C\_W\_ID, C\_D\_ID, C\_ID), número de líneas de pedido \emph{num\_lp},
+y sus correspondientes productos (OL\_I\_ID) provenientes de un almacén
+(OL\_SUPPLY\_W\_ID) y en una determinada cantidad (OL\_QUANTITY):
+\begin{enumerate}
+\item Buscamos el almacén W\_ID (en WAREHOUSE) y obtenemos los impuestos de ese almacén: W\_TAX.
+\item Buscamos la zona D\_W\_ID, D\_ID (en DISTRICT), obtenemos sus impuestos
+D\_TAX, obtenemos el número del siguiente pedido O\_NEXT\_O\_ID, y lo
+incrementamos en uno.
+\item Buscamos el cliente C\_W\_ID, C\_D\_ID, C\_ID (en CUSTOMER) y obtenemos: su descuento C\_DISCOUNT, su apellido C\_LAST y su crédito C\_CREDIT.
+\item Insertamos una nueva fila en NEW\_ORDER y ORDER donde: O\_CARRIER\_ID es
+puesto a nulo, si todas las líneas de pedido son locales O\_ALL\_LOCAL es puesto
+a 1 y el número de líneas de pedido O\_OL\_CNT es puesto a \emph{num\_lp}.
+\item Para cada línea de pedido O\_OL\_CNT:
+	\begin{enumerate}
+	\item Buscamos el producto I\_ID (en ITEM) y obtenemos: su precio I\_PRICE, su nombre I\_ITEM y sus datos I\_DATA.
+	\item Buscamos la línea en existencias (STOCK) del producto
+	S\_I\_ID,S\_W\_ID, donde S\_W\_ID = W\_ID, y obtenemos: la cantidad en
+	almacén S\_QUANTITY, e información variada S\_DATA, S\_DIST\_xx (donde
+	xx es el número de zona: D\_ID). \\
+	Si el valor de lo que tenemos S\_QUANTITY supera el de lo que pedimos OL\_QUANTITY en 10 o más unidades, S\_QUANTITY = S\_QUANTITY - OL\_QUANTITY; si no, S\_QUANTITY = (S\_QUANTITY - OL\_QUANTITY) + 91 (stock infinito). \\
+	La cantidad total de producto servido S\_YTD se incrementa con la
+	cantidad de producto pedido OL\_QUANTITY, y en el caso de que el pedido
+	sea local, el número de pedidos sobre las existencias S\_ORDER\_CNT aumenta en uno; si no es local se aumenta S\_REMOTE\_CNT en uno.
+	\item El precio total de la línea de pedido OL\_AMOUNT es OL\_QUANTITY * I\_PRICE.
+	\item Se inserta una nueva tupla en ORDER\_LINE para reflejar la nueva
+	línea del pedido donde: OL\_DELIVERY\_D es puesto a nulo, OL\_NUMBER es
+	único entre el resto de líneas de pedido que tienen el mismo
+	identificador de orden OL\_O\_ID, el número de zona OL\_D\_ID se
+	establece a D\_ID,y la información de zona OL\_DIST\_INFO es el valor de
+	S\_DIST\_xx (donde xx es OL\_D\_ID).
+	\end{enumerate}
+\end{enumerate}
+
+\subsection{Pago}
+La transacción de pago actualiza el balance económico del cliente y actualiza las estadísticas de pagos en la zona y el almacén. Es una transacción ligera, de lectura/escritura y con bastante frecuencia de ejecución. Además incluye un acceso a la tabla de clientes (CUSTOMER) sin usar la clave primaria.
+\subsubsection{Datos de entrada}\label{sec:pago-datosdeentrada}
+\begin{itemize}
+\item El número de almacén (W\_ID) permanece constante durante la transacción.
+\item El número de zona (D\_ID) se selecciona aleatoriamente entre [1..10] (teniendo en cuenta que D\_W\_ID = W\_ID).
+\item El cliente es seleccionado aleatoriamente con un número [1..100] de dos maneras:
+	\begin{itemize}
+	\item Si <=60 (el 60\%): mediante su apellido (C\_W\_ID, C\_D\_ID, C\_LAST) usando NURand (255, 0, 999) para C\_LAST.
+	\item Si es >60 (el 40\% restante): por su número (C\_W\_ID, C\_D\_ID,
+	C\_ID), y se usa una probabilidad NURand (1023, 1, 3000) para C\_ID.
+	\end{itemize}
+\item Independientemente de como haya sido seleccionado un cliente, el pago
+puede ser local o remoto, mediante otro número aleatorio entre [1..100]:
+	\begin{itemize}
+	\item Si es <=85 (el 85\%): el cliente paga localmente, por lo que C\_D\_ID = D\_ID y C\_W\_ID = W\_ID.
+	\item Si es >85 (el 15\% restante): el cliente paga a traves de una zona
+	y un almacén que no es el suyo, por lo que se selecciona una zona
+	(C\_D\_ID) aleatoriamente entre [1..10], y un almacén aleatoriamente
+	entre los disponibles.
+	\end{itemize}
+\item La cantidad a pagar (H\_AMOUNT) es seleccionada entre [1..5000]
+\item Para fecha del pago (H\_DATE) se usa la hora actual.
+\end{itemize}
+Aquí también recordamos que un pago puede ser \emph{local}, si el cliente pertenece al almacén desde el cual se hace el pago; y es \emph{remoto}, si el almacén desde el que se hace el pago no es el almacén al que pertenece el cliente (C\_W\_ID es distinto de W\_ID).
+
+\subsubsection{Perfil de la transacción}\label{sec:pago-perfil}
+Resumen de acciones lectura/escritura a realizar:
+\begin{itemize}
+\item \textbf{Lectura}
+	\begin{itemize}
+	\item Almacén (WAREHOUSE), mediante W\_ID (clave).
+	\item Zona (DISTRICT), mediante D\_W\_ID, D\_ID (clave).
+	\item Cliente (CUSTOMER), mediante C\_W\_ID, C\_D\_ID, C\_ID (clave).
+	\item Cliente (CUSTOMER), mediante mediante C\_W\_ID, C\_D\_ID, C\_LAST (\textbf{NO} clave).
+	\end{itemize}
+\item \textbf{Escritura}: inserción y actualización
+        \begin{itemize}
+	\item Nueva línea del histórico (HISTORY).
+	\item Actualización de almacén (WAREHOUSE).
+	\item Actualización de la zona (DISTRICT).
+	\end{itemize}
+\end{itemize}
+
+Para un almacén (W\_ID), una zona del almacén (D\_W\_ID, D\_ID), un cliente (C\_W\_ID, C\_D\_ID, C\_ID o C\_W\_ID, C\_D\_ID, C\_LAST) y una cantidad a pagar (H\_AMOUNT).
+\begin{enumerate}
+\item Obtenemos los datos del almacén W\_ID y actualizamos el balance económico del almacén: W\_YTD = W\_ITD + H\_AMOUNT.
+\item Obtenemos los datos de la zona D\_W\_ID, D\_ID y actualizamos el balance económico de la zona: D\_YTD = D\_YTD + H\_AMOUNT.
+\item Si el cliente es seleccionado mediante su apellido C\_LAST, puede ocurrir
+que tengamos más de un cliente, por lo que ordenaremos por el campo C\_FIRST y
+cogeremos el cliente de la mitad de la lista.
+\item Para el cliente indicado:
+	\begin{enumerate}
+	\item Disminuimos el balance actual: C\_BALANCE = C\_BALANCE - H\_AMOUNT.
+	\item Aumentamos el balance anual: C\_YTD\_PAYMENT = C\_YTD\_PAYMENT + H\_AMOUNT.
+	\item El número de pagos C\_PAYMENT\_CNT es incrementado en uno.
+	\end{enumerate}
+\item Si el valor de C\_CREDIT es ``BC'', hay que actualizar el campo C\_DATA de la siguiente manera:
+	\begin{enumerate}
+	\item Obtenemos los siguientes datos: C\_ID, C\_D\_ID, C\_W\_ID, D\_ID, W\_ID y H\_AMOUNT.
+	\item Los insertamos por la izquierda de C\_DATA, desplazando a la derecha lo que hubiera.
+	\item C\_DATA nunca debe sobrepasar los 500 caracteres.
+	\end{enumerate}
+\item El campo H\_DATA se construye concatenando W\_NAME, 4 espacios y D\_NAME.
+\item Insertamos una nueva tupla en el historial (HISTORY) de esta manera: H\_C\_ID = C\_ID, H\_C\_D\_ID = C\_D\_ID, H\_C\_W\_ID = C\_W\_ID, H\_D\_ID = D\_ID y H\_W\_ID = W\_ID.
+\end{enumerate}
+
+\subsection{Estado de un pedido}
+La transacción de consulta de estado de un pedido, informa sobre el estado del último pedido del cliente. Es una transacción de solo lectura e incluye acceso a la tabla de clientes (CUSTOMER) sin usar un campo clave.
+\subsubsection{Datos de entrada}\label{sec:estado-datosdeentrada}
+\begin{itemize}
+\item El número de almacén (W\_ID) permanece constante durante la transacción.
+\item La zona es seleccionada aleatoriamente entre [1..10] del almacén dado.
+\item El cliente es seleccionado, generando un número aleatorio entre [1..100]:
+	\begin{itemize}
+	\item Si es <=60 (el 60\%): usando su apellido, y para ello utilizaremos
+	una distribución NURand (255, 0, 999).
+	\item Si es > 60 (el 40\% restante): usando su número de cliente
+	mediante la distribución NURand (1023, 0 ,3000).
+	\end{itemize}
+\end{itemize}
+\subsubsection{Perfil de la transacción}\label{sec:estado-perfil}
+Resumen de acciones de lectura a realizar:
+\begin{itemize}
+\item \textbf{Lectura}
+        \begin{itemize}
+	\item Cliente (CUSTOMER), mediante C\_W\_ID, C\_D\_ID, C\_ID (clave).
+	\item Cliente (CUSTOMER), mediante mediante C\_W\_ID, C\_D\_ID, C\_LAST (\textbf{NO} clave).
+	\item Pedido (ORDER), mediante O\_W\_ID, O\_D\_ID, O\_C\_ID, O\_ID (clave)
+	\item Líneas de pedido(ORDER\_LINE), mediante OL\_W\_ID, OL\_D\_ID, OL\_O\_ID (clave).
+	\end{itemize}
+\end{itemize}
+
+Para un almacén (W\_ID), una zona (C\_W\_ID, D\_ID) y un cliente (C\_W\_ID, C\_D\_ID, C\_ID o C\_W\_ID, C\_D\_ID, C\_LAST) dados.
+\begin{enumerate}
+\item Si el cliente es seleccionado mediante su apellido C\_LAST, puede ocurrir
+que tengamos más de un cliente, por lo que ordenaremos por el campo C\_FIRST y
+cogeremos el cliente de la mitad de la lista.
+\item Obtenemos el pedido del cliente con el mayor O\_ID
+\item Obtenemos todas las líneas del pedido.
+\end{enumerate}
+\subsection{Envío}
+La transacción de envío consiste en procesar 10 pedidos nuevos. Es una transacción que no requiere mucha lectura y escritura aunque en los sistemas reales tiene poca frecuencia y no importa el tiempo que tarde.
+\subsubsection{Datos de entrada}\label{sec:envio-datosdeentrada}
+\begin{itemize}
+\item El número de almacén (W\_ID) permanece constante durante la transacción.
+\item El número de la empresa de transportes (O\_CARRIER\_ID) se selecciona aleatoriamente entre [1..10]
+\item La fecha de envío (OL\_DELIVERY\_D) es la fecha actual del sistema.
+\end{itemize}
+\subsubsection{Perfil de la transacción}\label{sec:envio-perfil}
+Para el envío de un pedido:
+\begin{itemize}
+\item \textbf{Lectura}
+        \begin{itemize}
+	\item Nuevo pedido (NEW\_ORDER), mediante NO\_W\_ID, NO\_D\_ID, NO\_ID (clave).
+	\item Pedido (ORDER), mediante O\_W\_ID, O\_D\_ID, O\_C\_ID, O\_ID (clave).
+	\item Líneas de pedido (ORDER\_LINE), mediante OL\_W\_ID, OL\_D\_ID, OL\_O\_ID (clave).
+	\item Cliente (CUSTOMER), mediante C\_W\_ID, C\_D\_ID, C\_ID (clave).
+        \end{itemize}
+\item \textbf{Escritura}: inserción y actualización
+        \begin{itemize}
+        \item Eliminar una tupla de nuevos pedidos (NEW\_ORDER).
+	\item Actualizar pedido (ORDER).
+	\item Actualizar cliente (CUSTOMER).
+        \end{itemize}
+\end{itemize}
+
+Para un almacén (W\_ID), para cada una de las diez zonas (D\_W\_ID, D\_ID) de
+ese almacén y para un número de empresa de transporte (O\_CARRIER\_ID). Es
+decir, los 10 envíos son dado un almacén (W\_ID), un envío por cada zona.
+\begin{enumerate}
+\item Seleccionamos, dentro de nuevo pedido (NEW\_ORDER), dados NO\_W\_ID = W\_ID y NO\_D\_ID = D\_ID, se selecciona el pedido con el NO\_O\_ID más bajo (el más viejo), y lo borramos.
+\item Seleccionamos el pedido correspondiente al nuevo pedido borrado: O\_W\_ID = W\_ID, O\_D\_ID = D\_ID, y O\_ID = NO\_O\_ID; y actualizamos la empresa de transporte utilizada a O\_CARRIER\_ID.
+\item Para todas las líneas de pedido que contiene el pedido, se modifica la fecha de envío
+OL\_DELIVERY\_D con la fecha actual del sistema y acumulamos la suma de los
+costes de cada línea OL\_AMOUNT.
+\item Para el cliente dueño del pedido: C\_W\_ID = W\_ID, C\_D\_ID = D\_ID y C\_ID = O\_C\_ID; su balance local C\_BALLANCE es incrementado por la suma de las cantidades anteriores, y la cantidad de pedidos enviados C\_DELIVERY\_CNT se incrementa en 1.
+\end{enumerate}
+
+\subsection{Nivel de existencias}
+La transacción de nivel de existencias averigua el número de productos que
+tienen un nivel de existencias por debajo de un límite. Es una transacción de
+sólo lectura pero con muchas lecturas, aunque es de poca frecuencia.
+\subsubsection{Datos de entrada}\label{sec:nivel-datosdeentrada}
+\begin{itemize}
+\item Se necesita un número de almacén y una zona (W\_ID, D\_ID), que permanecerán constantes durante la transacción.
+\item Un límite mínimo de existencias, elegido aleatoriamente entre [10..20].
+\end{itemize}
+\subsubsection{Perfil de la transacción}\label{sec:nivel-perfil}
+Se comprueban los niveles de existencia de los productos utilizados en las ultimas 20 transacciones.
+\begin{itemize}
+\item \textbf{Lectura}
+        \begin{itemize}
+	\item Zona (DISTRICT), mediante D\_W\_ID, D\_ID (clave).
+	\item Liínea de pedido (ORDER\_LINE), mediante OL\_W\_ID, OL\_D\_ID, OL\_O\_ID (clave).
+	\item Existencias (STOCK), mediante S\_I\_ID, S\_W\_ID (clave).
+	\end{itemize}
+\end{itemize}
+Dado un número de almacén (W\_ID), un número de zona (D\_W\_ID, D\_ID) y un nivel mínimo de existencias \emph{min}.
+\begin{enumerate}
+\item Seleccionamos la zona D\_W\_ID, D\_ID, y obtenemos el próximo número de pedido D\_NEXT\_O\_ID.
+\item Obtenemos todas las líneas de pedido (ORDER\_LINE) que cumplan: OL\_W\_ID = W\_ID, OL\_D\_ID = D\_ID y OL\_O\_ID más bajo que D\_NEXT\_O\_ID o mayor que D\_NEXT\_O\_ID + 20 (como se prefiera).
+\item De cada línea de pedido, extraemos el producto y buscamos en stock la
+línea del producto: S\_I\_ID = OL\_I\_ID, S\_W\_ID = W\_ID. En esa línea
+comprobamos que las existencias S\_QUANTITY sean mayores que \emph{min}, y en
+caso afirmativo, informamos de que se ha sobrepasado el límite.
+\end{enumerate}
+
+\subsection{Resumen y reglas de implementación}
+\subsubsection{Resumen de accesos}
+Ver cuadro \ref{tab:resumen-accesos} .
+\begin{table}[htb]
+\begin{center}
+\begin{tabularx}{\linewidth}{|X|c|c|c|c|c|}
+\hline
+Tabla & Lectura Indexada&Lectura no-Indexada&Actualización&Añadir&Borrar\\
+\hhline{======}
+WAREHOUSE   & X &   &  &   & \\ 
+\hline
+DISTRICT    & X &   &  &   & \\
+\hline
+CUSTOMER    & X & X & X &   & \\
+\hline
+HISTORY     &   &   &   & X & \\
+\hline
+ORDER       & X &   & X & X & \\
+\hline
+NEW\_ORDER  & X &   &   & X & X \\
+\hline
+ORDER\_LINE & X &   &   & X & \\
+\hline
+STOCK       & X &   & X &   & \\
+\hline
+ITEM        & X &   &   &   & \\
+\hline
+\end{tabularx}
+\end{center}
+
+\caption{Resumen de accesos a las tablas}
+\label{tab:resumen-accesos}
+\end{table}
+
+\subsubsection{Reglas de implementación}
+A la hora de implementar estas tablas en un sistema de almacenamiento de datos, si se quiere cumplir estrictamente la especificación del TPC-C, hay una serie de reglas a tener en cuenta.
+\begin{itemize}
+\item El uso de vistas para evitar lecturas/escrituras no está permitido.
+\item Se permite distribuir los registros en un cluster dentro de la base de datos. Esto es necesario para que la aplicación realice la cantidad indicada de operaciones de lectura/escritura en cada perfil de transacción, sin agrupar operaciones a través de vistas.
+\item Todas las tablas deben estar pobladas correctamente.
+\item Se permite dividir las tablas tanto horizontal como verticalmente, aunque en el caso de realizarse se deben publicar estos detalles.
+\item Se permite realizar réplicas de las tablas, aunque esas réplicas deben cumplir con los mismos requisitos que las tablas originales.
+\item Se permite duplicar y añadir atributos extra, siempre y cuando este hecho no esté destinado a mejorar el rendimiento.
+\item Cada atributo descrito anteriormente debe ser discreto y accesible
+independientemente. Sin embargo, para los atributos de tipo \textit{Fecha y
+hora} y para aquellos que sean datos (sufijo \_DATA), es posible separarlos en varias
+partes si se considera más útil.
+\item La clave primaria no debe representar directamente direcciones físicas de acceso o desplazamientos físicos.
+\item Ya que no se inserta o se borra en todas las tablas, el sistema no debe
+estar configurado para aprovecharse especialmente de esto durante las pruebas.
+Aunque a la hora de insertar nuevos datos el límite lo establece la cantidad de
+espacio disponible, hay que asegurar que la cardinalidad de la tabla pueda
+aumentarse en un 5\% y las claves puedan almacenar un rango el doble del
+especificado.
+\item Reglas de integridad: las claves deben ser siempre únicas, y siempre se debe de poder determinar el valor de cualquier atributo.
+\item Se requiere un acceso transparente a los datos, de tal manera que la
+aplicación que implementa las especificaciones TCP-C no necesite tener
+conocimiento de dónde están almacenados los datos.
+\item Cada una de las 9 tablas debe ser identificable mediante su nombre, y el
+acceso a su contenido se hará a través de ese nombre, con el fin de usar
+mecanismos de acceso lo más generales posibles.
+\end{itemize}
+
+\section{Poblado inicial}\label{sec:poblado}
+Cada almacén requiere un buen número de tuplas para poblar inicialmente la base
+de datos, lo que aquí se describe es qué cantidades relativas hacen falta.
+\subsection{Escalabilidad}
+El número de almacenes es la unidad base de escalado del sistema, la
+cardinalidad del resto de tablas depende de la cantidad de almacenes; excepto la
+de la tabla productos, que es constante e independiente del número de almacenes,
+ya que todos los almacenes comparten la misma lista de productos. 
+
+Las cardinalidades para un poblado inicial por cada almacén son las expresadas
+en el cuadro \ref{tab:cardinalidades}.
+\begin{table}
+\begin{tabularx}{\linewidth}{|l|r|>{\raggedleft}X|X<{\raggedleft}|}
+\hline
+\textbf{Nombre Tabla} & \textbf{Cardinalidad} & \textbf{Tamaño por tupla} (Bytes) & \textbf{Tamaño por tabla} (KiBytes) \\
+\hline
+Almacén (WAREHOUSE)        & 1    & 89  & 0,089 \\
+Zona (DISTRICT)            & 10   & 95  & 0,950 \\
+Cliente (CUSTOMER)         & 30K  & 655 & 19650 \\
+Histórico (HISTORY)        & 30K  & 46  & 1380 \\
+Pedido (ORDER)             & 30K  & 24  & 720 \\
+Nuevo-Pedido (NEW\_ORDER)  & 9K   & 8   & 72 \\
+Linea-Pedido (ORDER\_LINE) & 300K & 54  & 16200 \\
+Existencias (STOCK)        & 100K & 306 & 30600 \\
+Productos (ITEM)           & 100K & 82  & 8200 \\
+\hline
+\end{tabularx}
+\caption{Cardinalidades de las tablas}
+\label{tab:cardinalidades}
+\end{table}
+
+Según las especificaciones de las transacciones a realizar, sabemos que la
+cardinalidad de las tablas: Histórico, Nuevo-Pedido, Pedido y Línea-Pedido,
+variará como resultado de la repetición de las diferentes pruebas. Aunque el
+poblado inicial de la base de datos y las transacciones están pensadas para
+minimizar el impacto de esta variación de cardinalidad, disminuyendo el impacto
+en el rendimiento y haciendo que las pruebas sean repetibles.
+
+\subsection{Poblado}
+Cada tabla debe contener el número de filas definidas en la sección anterior
+antes de iniciar las pruebas; por ejemplo, la tabla Nuevo-Pedido, debe contener
+2000 filas por cada almacén. Si bien el poblado inicial se indica en unas tablas
+hay un parámetro que se puede variar, y es el número de almacenes.
+
+A la hora de generar carga de manera más variada, el número de almacenes sirve
+como unidad de medida de esa carga que se va a generar, ya que si cada almacén
+tiene: distritos, y esos distritos clientes con sus pedidos, también tiene
+existencias. El hecho de añadir un almacén multiplica la cardinalidad del resto
+de tablas con las que se relaciona.
+
+\subsubsection{Definición de términos}
+\begin{itemize}
+	\item El término \textbf{aleatorio} significa: seleccionado
+	independientemente y uniformemente distribuido sobre el rango
+	especificado. Para poblar la base de datos, se permite la generación de
+	una gran cantidad de números aleatorios para luego usarlos más tarde
+	de manera secuencial.
+	\item La notación \textbf{a-string aleatoria[x .. y]} (y respectivamente
+	la notación \textbf{n-string aleatoria[x .. y]}) indica una cadena de
+	caracteres alfanuméricos (numéricos para el caso de n-string), de mínimo
+	x, máximo y, y media (y+x)/2. El juego de caracteres empleado para esto
+	debe poder representar al menos 128 caracteres diferentes.
+	
+	Para generar estas cadenas, se puede implementar una concatenación de
+	otras dos cadenas seleccionadas aleatoriamente de dos vectores de
+	cadenas, donde:
+	\begin{enumerate}
+		\item Ambos vectores contengan un mínimo de 10 cadenas diferentes.
+		\item El primer vector contenga cadenas de x caracteres.
+		\item El segundo vector contiene cadenas de longitud
+		uniformemente distribuida entre cero e (y - x) caracteres.
+		\item Ambos vectores pueden contener cadenas específicas para
+		cada atributo en vez de cadenas genéricas y totalmente
+		aleatorias, con tal de que esto no suponga ninguna mejora de
+		rendimiento a la hora de ejecutar las pruebas.
+	\end{enumerate}
+	\item El apellido del cliente (C\_LAST) debe ser generado por la
+	concatenación de tres sílabas de longitud variable seleccionadas del
+	cuadro \ref{tab:equivalencias-clast}.
+	
+	\begin{table}
+	\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+	\hline
+	0  & 1  & 2   & 3  & 4   & 5  & 6   & 7    & 8    & 9\\
+	BAR& OUG& ABLE& PRI& PRES& ESE& ANTU& CALLY& ATION& EING\\
+	\hline
+	\end{tabular}
+	\caption{Equivalencias número-texto}
+	\label{tab:equivalencias-clast}
+	\end{table}
+	
+	Por lo que dado un número entre 0 y 999, cada una de las 3 sílabas es
+	obtenida por el dígito correspondiente en la representación con 3
+	dígitos del número. Por ejemplo, el número 836 produce el nombre
+	ATIONPRIANTU; y el número 12 produce el nombre BAROUGABLE.
+	\item La notación \textbf{único entre[$x$]} identifica cualquier valor dentro de un grupo de x valores contiguos y único en el grupo de filas que está siendo poblado.
+	\item La notación \textbf{aleatorio entre [$x$ .. $y$]} identifica a un
+	valor aleatorio seleccionado independientemente y distribuido de manera
+	uniforme entre $x$ e $y$ (ambos incluidos), con una media de $(x + y) /
+	2$ y con el mismo número de dígitos de precisión. Ejemplo: $[0.01 .. 100.00]$ tiene 10000 valores únicos, mientras que $[1 .. 100]$ tiene solo 100
+	\item La notación \textbf{permutación aleatoria de [$x$ .. $y$]}
+	identifica una secuencia de números de $x$ a $y$ dispuestos de manera
+	aleatoria.
+	\item Los códigos postales de almacén, cliente y zona (W\_ZIP, C\_ZIP y D\_ZIP respectivamente) deben ser generados de la siguiente manera.
+	\begin{enumerate}
+		\item Una primera cadena de 4 caracteres del tipo: \textit{random n-string[0000 .. 9999]}.
+		\item La cadena constante 1111.
+	\end{enumerate}
+	De tal manera que dado el número 345, obtenemos el siguiente código postal: 03451111. Y dado que hay 30.000 clientes por almacén y 10.000 códigos postales distintos tenemos una media de 3 clientes por almacén con el mismo código postal.
+\end{itemize}
+
+\subsubsection{Indicaciones para el poblado de las tablas}
+La población inicial de la base de datos debe estar compuesta por:\\
+\begin{itemize} 
+	\item En la tabla productos (ITEM) se insertan 100.000 filas con las siguientes características:
+	\begin{list}{}{}
+	\item I\_ID único entra [100.000] 
+	\item I\_IM\_ID aleatorio entre [1 .. 10.000]
+	\item I\_NAME a-string aleatoria entre [14 .. 24]
+	\item I\_PRICE aleatorio entre [1,00 .. 100,00]
+	\item I\_DATA a-string aleatorio [26 .. 50]. Para el 10\% de las filas se
+selecciona aleatoriamente, la cadena \textit{ORIGINAL} debe incluirse en I\_DATA
+en una posición aleatoria.
+	\end{list}
+	
+	\item Una entrada en la tabla de almacenes para cada almacén
+	configurado con estas características:
+	\begin{list}{}{}
+	\item W\_ID único entre el número de almacenes configurados. 
+	\item W\_NAME a-string aleatoria entre [6 .. 10] 
+	\item W\_STREET\_1 a-string aleatoria entre [10 .. 20] 
+	\item W\_STREET\_2 a-string aleatoria entre [10 .. 20]  
+	\item W\_CITY a-string aleatoria entre [10 .. 20]  
+	\item W\_STATE a-string aleatoria de 2 caracteres.
+	\item W\_ZIP generado como se indicó anteriormente.
+	\item W\_TAX aleatorio entre[0,0000 .. 0,2000] 
+	\item W\_YTD = 300.000,00 
+	\end{list}
+
+	Para cada tupla de la tabla de almacenes tenemos que añadir:
+	\begin{itemize}
+	\item 100.000 tuplas a la tabla de existencias, ya que existencias
+	contiene la cantidad de un producto para un almacén determinado.
+	\begin{list}{}{}
+	\item S\_I\_ID único entre [100.000] 
+	\item S\_W\_ID = W\_ID 
+	\item S\_QUANTITY aleatorio entre [10 .. 100] 
+	\item S\_DIST\_01 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_02 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_03 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_04 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_05 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_06 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_07 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_08 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_09 a-string aleatorio de 24 caracteres 
+	\item S\_DIST\_10 a-string aleatorio de 24 caracteres 
+	\item S\_YTD = 0 
+	\item S\_ORDER\_CNT = 0 
+	\item S\_REMOTE\_CNT = 0 
+	\item S\_DATA a-string aleatoria entre [26 .. 50]. Para el 10\% de las filas tiene que
+	aparecer la cadena ``ORIGINAL'' en una posición aleatoria dentro de S\_DATA 
+	\end{list}
+	\item 10 tuplas en la tabla de zona con las siguientes características:
+	\begin{list}{}{}
+	\item D\_ID único entre [10] 
+	\item D\_W\_ID = W\_ID 
+	\item D\_NAME a-string aleatoria entre[6 .. 10] 
+	\item D\_STREET\_1 a-string aleatoria entre [10 .. 20]  
+	\item D\_STREET\_2 a-string aleatoria entre [10 .. 20]  
+	\item D\_CITY a-string aleatoria entre [10 .. 20]  
+	\item D\_STATE a-string aleatoria de dos caracteres. 
+	\item D\_ZIP generado como se indicó anteriormente. 
+	\item D\_TAX aleatorio entre [0,0000 .. 0,2000] 
+	\item D\_YTD = 30.000,00 
+	\item D\_NEXT\_O\_ID = 3.001 
+	\end{list}
+	Para cada tupla de la tabla de zona añadimos:
+		\begin{itemize}
+		\item 3000 tuplas en la tabla de clientes con estas
+		características:
+		\begin{list}{}{}
+		\item C\_ID único entre [3.000] 
+		\item C\_D\_ID = D\_ID 
+		\item C\_W\_ID = D\_W\_ID 
+		\item C\_LAST generado como se indicó anteriormente y basándose en una iteración entre
+		0 y 999 para los primeros 1000 clientes; y generando números aleatorios no
+		uniformes con la función NURand(255,0,999) para los 2000 clientes restantes.
+		Recordemos que dicha función de números no aleatorios tiene una constante de
+		funcionamiento que tiene que ser escogida de manera aleatoria entre los
+		diferentes experimentos.
+		\item C\_MIDDLE = ``{OE}'' 
+		\item C\_FIRST a-string aleatoria entre [8 .. 16] 
+		\item C\_STREET\_1 a-string aleatoria entre [10 .. 20]  
+		\item C\_STREET\_2 a-string aleatoria entre [10 .. 20]  
+		\item C\_CITY a-string aleatoria entre [10 .. 20]  
+		\item C\_STATE a-string aleatoria de 2 caracteres. 
+		\item C\_ZIP generado como se indicó anteriormente.  
+		\item C\_PHONE n-string aleatoria de 16 dígitos. 
+		\item C\_SINCE fecha y hora del momento de poblado.
+		\item C\_CREDIT = ``GC''. Para el 10\% de las filas, para el resto C\_CREDIT = ``BC'' 
+		\item C\_CREDIT\_LIM = 50.000,00 
+		\item C\_DISCOUNT aleatorio entre [0,0000 .. 0,5000] 
+		\item C\_BALANCE = -10,00 
+		\item C\_YTD\_PAYMENT = 10,00 
+		\item C\_PAYMENT\_CNT = 1 
+		\item C\_DELIVERY\_CNT = 0 
+		\item C\_DATA a-string aleatoria entre [300 .. 500] 
+		\end{list}
+		Que a su vez, por cada cliente que se añade, generamos una entrada en
+		la tabla de histórico con su clave y las siguientes
+		características:
+		\begin{list}{}{}
+		\item H\_C\_ID = C\_ID 
+		\item H\_C\_D\_ID = H\_D\_ID = D\_ID 
+		\item H\_C\_W\_ID = H\_W\_ID = W\_ID 
+		\item H\_DATE fecha y hora actual 
+		\item H\_AMOUNT = 10,00 
+		\item H\_DATA a-string aleatoria entre [12 .. 24] 
+		\end{list}
+		\item Siguiendo en población generada por cada zona, añadimos
+		3000 tuplas a la tabla de pedido con las siguientes
+		características:
+		\begin{list}{}{}
+		\item O\_ID único entre [3.000] 
+		\item O\_C\_ID escogido secuencialmente de una permutación de [1 .. 3.000] 
+		\item O\_D\_ID = D\_ID 
+		\item O\_W\_ID = W\_ID 
+		\item O\_ENTRY\_D fecha y hora actual.
+		\item O\_CARRIER\_ID Aleatorio entre [1 .. 10] si O\_ID < 2.101,  si no nulo 
+		\item O\_OL\_CNT Aleatorio entre [5 .. 15] 
+		\item O\_ALL\_LOCAL = 1 
+		\end{list}
+		Y por cada pedido que tengamos, hay que generar las líneas de
+		pedido según el parámetro O\_OL\_CNT que indica cuántas líneas
+		hay en un pedido. Estas líneas de pedido además de cumplir las
+		siguientes características también están cumpliendo las normas
+		que se indicaron en la transacción de \textit{nuevo pedido}.
+		\begin{list}{}{}
+		\item OL\_O\_ID = O\_ID 
+		\item OL\_D\_ID =  D\_ID 
+		\item OL\_W\_ID = W\_ID 
+		\item OL\_NUMBER único entre [O\_OL\_CNT] 
+		\item OL\_I\_ID aleatorio entre [1 .. 100.000] 
+		\item OL\_SUPPLY\_W\_ID = W\_ID 
+		\item OL\_DELIVERY\_D Pondremos O\_ENTRY\_D si OL\_O\_ID < 2.101,  y nulo en otro caso 
+		\item OL\_QUANTITY = 5 
+		\item OL\_AMOUNT Pondremos 0.00 si OL\_O\_ID < 2.101, aleatorio entre [0,01 .. 9.999,99]
+		\end{list}
+		\item Por último, en la zona, añadimos 900 entradas en la tabla
+de nuevo-pedido que se corresponden con los 900 últimos pedidos que hemos
+generado para esa zona.
+		\begin{list}{}{}
+		\item NO\_O\_ID = O\_ID 
+		\item NO\_D\_ID = D\_ID 
+		\item NO\_W\_ID = W\_ID 
+		\end{list}
+		\end{itemize}
+	\end{itemize}
+\end{itemize}
+
+La implementación no debiera aprovecharse del hecho de que algunos campos están
+poblados inicialmente con un valor fijo; por ejemplo, el espacio para
+C\_CREDIT\_LIM no se pude reservar sólo una vez y enlazar desde el resto de
+registros a ese valor.
+\section{Métrica de rendimiento}\label{sec:metricarendimiento}
+\subsection{Usuarios simulados}
+El sistema que simulamos es activado por usuarios que son también simulados.
+Cada usuario realiza los siguientes pasos en orden:
+\begin{enumerate}
+\item Selecciona la transacción a realizar.
+\item Pasa un tiempo entre que el sistema le muestra la pantalla donde
+introducir los datos
+\item Introduce los datos en esa pantalla, lo que conlleva un tiempo.
+\item Manda realizar la transacción, y pasa un tiempo mientras se completa.
+\item Se muestran los datos en su terminal, y se emplea un tiempo en leerlos.
+\item Vuelta a empezar.
+\end{enumerate}
+
+\textbf{Importante:} Para esta implementación se van a ignorar todos los
+requerimientos de tiempos de espera y tiempos de respuesta.
+
+Los 5 tipos de transacciones están disponibles en todos los terminales, y aunque
+la selección de una transacción es aleatoria se debe mantener una proporción
+entre el total de transacciones enviadas (cuadro \ref{tab:tanto-ejecuciones}).
+\begin{table}
+\begin{tabular}{ll}
+\hline
+Transacción & Tanto por ciento de ejecuciones \\
+\hline
+Nuevo Pedido & 45\%\\
+Pago         & 43\%\\
+Estado Pedido& 4\%\\
+Envío        & 4\%\\
+Nivel de Existencias& 4\% \\
+\hline
+\end{tabular}
+\caption{Distribución de las proporciones de las transacciones}
+\label{tab:tanto-ejecuciones}
+\end{table}
+
+El propósito de estos porcentajes para cada tipo de transacción es tener,
+aproximadamente, una transacción de pago por cada transacción de nuevo pedido; y
+una transacción de envío, estado de pedido y nivel de existencias por cada 10
+transacciones de nuevo pedido. Con estos porcentajes se puede asegurar que los
+pedidos se procesan completamente.
+
+\subsection{Reglas para el balanceo de transacciones}\label{sec:reglastransacciones}
+Las transacciones deben seleccionarse de manera uniformemente aleatoria a la vez
+que se mantienen los porcentajes de mezcla para cada tipo de transacción. Esto
+se puede realizar de dos maneras: por pesos y con una baraja.
+
+Todas la terminales deben seleccionar las transacciones usando la misma técnica,
+y no se permite trucar los resultados usando diferentes técnicas en cada
+terminal.
+\subsubsection{Pesos}
+Un peso se asocia a cada tipo de transacción, y los porcentajes se alcanzan
+seleccionando cada nueva transacción de manera uniformemente aleatoria a partir
+de una distribución con pesos. Se deben cumplir las siguientes reglas:
+\begin{itemize}
+\item Los pesos iniciales se eligen por la persona que realiza las pruebas de
+tal manera que cumplan los porcentajes.
+\item Para alcanzar esos porcentajes, el simulador de usuario puede ajustar
+dinámicamente dichos pesos asociados a cada tipo de transacción durante la
+ejecución del benchmark. Aunque estos ajustes tienen que estar dentro de un
+margen del 5\% de los valores originales.
+\end{itemize}
+\subsubsection{Baraja}
+Una o más cartas de una baraja se asocian a cada tipo de transacción, de tal
+manera que los porcentajes requeridos se alcanzan seleccionando una nueva
+transacción aleatoriamente de la baraja cuyo contenido garantiza los
+porcentajes. Se deben de cumplir las siguientes reglas:
+\begin{itemize}
+\item Cualquier número de terminales pueden compartir la misma baraja, incluso
+cada terminal puede tener su propia baraja.
+\item Una baraja debe estar compuesta de uno o más conjuntos de 23 cartas:
+	\begin{itemize}
+	\item 10 cartas para nuevo pedido.
+	\item 10 cartas para pago.
+	\item 1 carta para estado pedido.
+	\item 1 carta para envío.
+	\item 1 carta para nivel de existencias.
+	\end{itemize}
+El tamaño mínimo de una barajaa es un conjunto anteriormente descrito, y si se
+usa más de una baraja, todas las barajas deben ser del mismo tamaño.
+\item Cada paso a través de la baraja debe ser hecho de manera distinta y
+aleatoria. Si una baraja es accedida de manera secuencial, hay que barajarla
+cada vez que la terminamos; en cambio si elegimos cartas de la baraja de manera
+aleatoria, no las podemos devolver a la baraja hasta que se hayan acabado.
+\end{itemize}
+
+\subsection{Cálculo de la unidad de medida}
+Los porcentajes que se han visto para elegir el tipo de transacción representan
+un ciclo completo en el negocio simulado, consistente en muchas transacciones
+que introducen nuevos pedidos, preguntan por el estado de los pedidos actuales,
+envían pedidos pendientes, anotan pagos y monitorizan el estado de las
+existencias en los almacenes.
+
+La métrica utilizada para el informe final se llama \textit{Maximum Qualified
+Throughput} (\textbf{MQTh}). Esta medida es más una medida de capacidad de proceso del
+negocio más que el ratio de ejecución de transacciones, ya que tiene en cuenta
+todas las transacciones con los porcentajes anteriormente dichos.
+
+El MQTh es el número total de transacciones de nuevo pedido completadas dividido
+por el tiempo transcurrido en la ejecución del benchmark. El nombre de esta
+unidad a la hora de informar es \textbf{tpmC}, y no debe ser interpolada o
+extrapolada de ninguna manera, también deben ser truncados sus decimales.
+
+Para que esta unidad sea válida, no se deben haber ignorado más de un 1\% de
+transacciones de envío debido a que no había pedidos para enviar en la tabla de
+nuevo pedido.
+
+\subsection{Intervalo de medida}
+Las pruebas deben ser hechas de tal manera que se pueda obtener la capacidad
+real del sistema a la hora de procesar trabajo. Aunque el intervalo de tiempo
+pueda ser de 2 horas, el sistema debe estar configurado para que al menos el
+benchmark pueda ejecutarse durante 8 horas manteniendo todas las características
+que se han descrito a lo largo del análisis.
+
+Por ejemplo, no sería valida una configuración en la cual el rendimiento es mayor
+en los primeros momentos de la medida, y en el resto es peor debido a que se
+utiliza un sistema de almacenamiento dedicado al principio, pero si quisiéramos
+ejecutar la prueba durante 8 horas se usaría un medio compartido y el
+rendimiento sería inferior.
+
+También se puede incluir un tiempo de calentamiento, en el cual el sistema se va
+estabilizando hasta un estado en el cual el rendimiento no sufra casi
+variaciones. Este tiempo de calentamiento, si se usa, no se debe tener en
+cuenta.
+
+Para que la medida obtenida sea tomada como válida, durante el intervalo, debe
+ocurrir:
+\begin{enumerate}
+\item La media de líneas de pedido en cada pedido debe estar entre 9,5 y 10,5.
+\item El número de líneas de pedido remotas debe ser entre un 0,95\% y un
+1,05\%, en el caso de que exista más de un almacén.
+\item El número de pagos remotos debe ser de al menos un 14\% y como mucho de un
+16\%.
+\item El número de búsquedas de clientes a través de su apellido en la
+transacción de pago y en la transacción de estado de pedido debe ser de al menos
+un 57\% y como mucho de un 63\%, medidos de manera independiente por cada tipo
+de transacción.
+\end{enumerate}
+
+\subsubsection{Duración}
+El intervalo de tiempo durante el cual se realizan mediciones debe ser: 
+\begin{enumerate}
+\item Después del calentamiento. 
+\item Durante un mínimo de 120 minutos (2 horas)
+\item Y lo suficientemente largo para generar resultados reproducibles que sean
+representativos del rendimiento del sistema que se está probando.
+\end{enumerate}
+
+\section{Resumen del análisis}
+Dado el gran número de requisitos que son necesarios para completar una
+implementación del benchmark TPC-C, y para completar la documentación de este
+análisis, se van a incluir una serie de casos de uso que simbolizan de manera
+abstracta los procesos más significativos que se realizan en dicho benchmark.
+\subsection{Casos de uso}
+\subsubsection{Diagrama de casos de uso}
+Comenzaremos con el diagrama general de casos de uso (Fig. \ref{fig:casosuso}),
+donde aparecen dos actores en el sistema que simbolizan:
+\begin{itemize}
+\item \textbf{Usuario del benchmark:} La persona que ejecuta el benchmark para
+obtener una medida de rendimiento de un sistema.
+\item \textbf{Usuario simulado:} Que a través de la terminal introduce los datos
+de las transacciones en el sistema. Se puede decir que es el operador virtual
+del terminal.
+\end{itemize}
+ 
+\begin{figure}
+\begin{center}
+\includegraphics[width=\linewidth]{cap3/casosdeuso.pdf}
+\caption{Casos de uso del benchmark TPC-C}
+\label{fig:casosuso}
+\end{center}
+\end{figure}
+
+\subsubsection{Configurar Benchmark}
+\paragraph{Introducción}
+A la hora de ejecutar el benchmark, existen unos parámetros importantes de los
+que depende el resultado final y el modo de trabajo del benchmark. Es aquí donde
+se indica que necesita el benchmark para funcionar.
+\paragraph{Actores}
+El usuario del benchmark.
+\paragraph{Pre condiciones}
+Ninguna, ya que esto sucede lo primero de todo.
+\paragraph{Post condiciones}
+El benchmark se considera \textit{configurado} y se puede ejecutar con esta
+configuración.
+\paragraph{Acciones}
+\begin{enumerate}
+\item El usuario del benchmark indica que quiere configurar los parámetros de
+ejecución del benchmark TPC-C.
+\item El sistema le facilita un interfaz para realizar dicha configuración.
+\item El usuario introduce:
+	\begin{itemize}
+	\item El número de terminales que van a simularse.
+	\item Cuántas transacciones van a realizarse en total.
+	\item El número de almacenes a la hora de generar un poblado de datos.
+	\end{itemize}
+\item El sistema almacena dichos datos como una configuración del benchmark.
+\item El sistema queda listo para ejecutarse con esa nueva configuración.
+\end{enumerate}
+\paragraph{Relaciones con otros casos de uso}
+De manera directa ninguna, pero lo sucedido en este caso de uso es necesario
+para que el resto de casos de uso funcionen.
+
+\subsubsection{Realizar Medida}
+\paragraph{Introducción}
+Esta es la ejecución del benchmark puramente, donde se realizan una serie de
+tareas y se obtienen unos resultados en base a la métrica de rendimiento que se
+ha definido en el análisis. Este caso de uso depende de aquellos casos de uso
+que simbolizan al usuario simulado y las tareas que realiza.
+\paragraph{Actores}
+El usuario del benchmark.
+\paragraph{Pre condiciones}
+El sistema tiene que estar \textit{configurado}, por lo que se debe disponer de
+alguna configuración antes de ejecutar el benchmark.
+\paragraph{Post condiciones}
+\begin{itemize}
+\item Se obtiene una medición del rendimiento del sistema así como otros datos
+estadísticos.
+\item Se ha ejecutado el benchmark correctamente.
+\end{itemize}
+\paragraph{Acciones}
+\begin{enumerate}
+\item El usuario indica al sistema una configuración del mismo y lo lanza para
+obtener una medición de rendimiento.
+\item El sistema crea una serie de tablas en un medio de almacenamiento y las
+puebla (llena de datos) tal y como se indica en la sección de \textit{Poblado}
+(Pag. \pageref{sec:poblado}).
+
+Para ello utiliza el parámetro de configuración referente al número de
+almacenes.
+\item El sistema prepara el número de terminales indicadas y con ese número
+prepara también el
+número de instancias del sistema de almacenamiento de datos que deben estar
+preparadas para responder a la carga.
+\item El sistema reparte el número total de transacciones entre las terminales.
+\item Cada terminal ejecuta las transacciones adecuadas para cumplir el
+porcentaje de transacciones indicado en la sección de \textit{Métrica de
+rendimiento} (Pag. \pageref{sec:metricarendimiento}).
+	\begin{itemize}
+	\item Nuevo pedido (\textit{$\ll include \gg$} Caso de uso de nuevo pedido).
+	\item Pago (\textit{$\ll include \gg$} Caso de uso de Pago).
+	\item Estado de un pedido (\textit{$\ll include \gg$} Caso de uso de Estado de un
+	pedido).
+	\item Envío (\textit{$\ll include \gg$} Caso de uso de Envío)
+	\item Nivel de existencias (\textit{$\ll include \gg$} Caso de uso de Nivel de
+	existencias).
+	\end{itemize}
+\item El sistema espera información por parte de los servidores encargados de
+atender las peticiones de las terminales.
+\item El sistema realiza una estadística y muestra la medida de rendimiento así
+como infamación extra del número de transacciones ejecutadas.
+\end{enumerate}
+\paragraph{Relaciones con otros casos de uso}
+Para la correcta realización de este caso de uso se necesita de los siguientes
+casos de uso: Nuevo Pedido, Pago, Estado de un pedido, Envío y Nivel de
+existencias.
+
+\subsubsection{Nuevo Pedido}
+\paragraph{Introducción}
+Transacción de nuevo pedido, donde el sistema simula que la entrada de un pedido
+adicional al negocio.
+\paragraph{Actores}
+El usuario simulado.
+\paragraph{Pre condiciones}
+\begin{itemize}
+\item Es sistema está en ejecución.
+\item El sistema de almacenamiento ha sido poblado con datos según las reglas de
+poblado (Pag. \ref{sec:poblado}).
+\item Esta transacción se ejecuta en un servidor lanzado para atender a las
+peticiones de una terminal simulada.
+\end{itemize}
+\paragraph{Post condiciones}
+\begin{itemize}
+\item Se ha insertado un nuevo pedido en el sistema
+\item El sistema de benchmark sigue funcionando.
+\item El sistema de almacenamiento contiene datos correctos y no corruptos.
+\end{itemize}
+\paragraph{Acciones}
+\begin{enumerate}
+\item El usuario simulado ha decidido que quiere realizar una transacción de
+nuevo pedido.
+\item El usuario simulado provee de los datos necesarios para dicha transacción
+a la terminal (Todos los detalles en \textit{Nuevo Pedido, datos de entrada},
+Pag. \pageref{sec:nuevopedido-datosdeentrada}).
+	\begin{enumerate}
+	\item El número de almacén local (W\_ID). 
+	\item El número de la zona (D\_ID). 
+	\item El número de líneas de pedido (O\_OL\_CNT). 
+	\item Para cada línea de pedido: 
+		\begin{enumerate}
+		\item Un número de producto (OL\_I\_ID).
+		\item Almacén que provee el producto (OL\_SUPPLY\_W\_ID).
+		\item Una cantidad de producto (OL\_QUANTITY).
+		\item Una fecha para el pedido (O\_ENTRY\_D).
+		\end{enumerate}
+	\end{enumerate}
+\item La terminal encarga el siguiente trabajo al servidor que se le ha
+asignado (Todos los detalles en \textit{Nuevo Pedido, perfil de la transacción},
+Pag. \pageref{sec:nuevopedido-perfil}).
+	\begin{enumerate}
+	\item Obtener los datos del almacén W\_ID.
+	\item Obtener los datos de la zona D\_W\_ID,D\_ID e incrementar
+	O\_NEXT\_O\_ID.
+	\item Obtener el cliente C\_W\_ID, C\_D\_ID, C\_ID y obtener sus datos.
+	\item Crear una entrada en pedido y en nuevo pedido con la misma clave.
+	\item Para cada línea de pedido:
+		\begin{enumerate}
+		\item Buscamos el producto.
+		\item Actualizamos las existencias del producto en el almacén.
+		\item Calculamos el precio de esa línea
+		\item Insertamos una tupla en líneas de pedido con estos datos.
+		\end{enumerate}
+	\end{enumerate}	
+\item La transacción se da por finalizada.
+\end{enumerate}
+\paragraph{Relaciones con otros casos de uso}
+Es utilizado por el caso de uso: realizar medida.
+
+\subsubsection{Pago}
+\paragraph{Introducción}
+Transacción de pago, donde se simula que un cliente paga una cantidad de dinero
+para cubrir su deuda con la empresa.
+\paragraph{Actores}
+El usuario simulado.
+\paragraph{Pre condiciones}
+\begin{itemize}
+\item Es sistema está en ejecución.
+\item El sistema de almacenamiento ha sido poblado con datos según las reglas
+de poblado (Pag. \pageref{sec:poblado}).
+\item Esta transacción se ejecuta en un servidor lanzado para atender a
+las peticiones de una terminal simulada.
+\end{itemize}
+
+\paragraph{Post condiciones}
+\begin{itemize}
+\item Se ha anotado el pago del cliente.
+\item El sistema de benchmark sigue funcionando.
+\item El sistema de almacenamiento contiene datos correctos y no corruptos.
+\end{itemize}
+
+\paragraph{Acciones}
+\begin{enumerate}
+\item El usuario simulado ha decidido que quiere realizar una transacción de
+pago.
+\item El usuario simulado provee de los datos necesarios para dicha transacción
+a la terminal (Todos los detalles en \textit{Pago, datos de entrada}, Pag
+\pageref{sec:pago-datosdeentrada}).
+	\begin{enumerate}
+	\item El número de almacén (W\_ID).
+	\item El número de la zona (D\_ID).
+	\item Los datos de un cliente: a veces por su identificador  (C\_W\_ID,
+	C\_D\_ID, C\_ID), y a veces por su apellido (C\_LAST).
+	\item La cantidad a pagar (H\_AMOUNT).
+	\item La fecha del pago (H\_DATE).
+	\end{enumerate}
+\item La terminal encarga el siguiente trabajo al servidor que se le ha asignado
+(Todos los detalles en \textit{Pago, perfil de la transacción}, Pag.
+\pageref{sec:pago-perfil}).
+	\begin{enumerate}
+	\item Obtener los datos del almacén (W\_ID) e incrementar su balance
+	económico en H\_AMOUNT.
+	\item Obtener los datos de la zona (D\_W\_ID, D\_ID) e incrementar su
+	balance económico en H\_AMOUNT.
+	\item Obtener los datos del cliente y:
+		\begin{enumerate}
+		\item Incrementar su balance anual en H\_AMOUNT.
+		\item Disminuir el balance actual en H\_AMOUNT.
+		\item Incrementar en uno el número de pagos.
+		\item Dependiendo del campo C\_CREDIT actualizar el campo
+		C\_DATA.
+		\end{enumerate}
+	\item Preparar una entrada en el histórico con su campo H\_DATA.
+	\item Añadir dicha entrada al histórico.
+	\end{enumerate}
+\end{enumerate}
+\paragraph{Relaciones con otros casos de uso}
+Es utilizado por el caso de uso: realizar medida.
+
+\subsubsection{Estado de un pedido}
+\paragraph{Introducción}
+Transacción de consulta de estado de un pedido; el sistema simula consultar el
+estado del último pedido realizado por el cliente.
+\paragraph{Actores}
+El usuario simulado.
+\paragraph{Pre condiciones}
+\begin{itemize}
+\item Es sistema está en ejecución.
+\item El sistema de almacenamiento ha sido poblado con datos según las reglas
+de poblado (Pag. \pageref{sec:poblado}).
+\item Esta transacción se ejecuta en un servidor lanzado para atender a las 
+peticiones de una terminal simulada.
+\end{itemize}
+\paragraph{Post condiciones}
+\begin{itemize}
+\item Se ha informado al cliente del estado de su último pedido.
+\item El sistema de benchmark sigue funcionando.
+\item El sistema de almacenamiento contiene datos correctos y no corruptos.
+\end{itemize}
+
+\paragraph{Acciones}
+\begin{enumerate}
+\item El usuario simulado ha decidido que quiere realizar una transacción de
+consulta de estado de un pedido.
+\item El usuario simulado provee de los datos necesarios para dicha transacción
+a la terminal (Todos los detalles en \textit{Estado de pedido, datos de entrada},
+Pag. \pageref{sec:estado-datosdeentrada}).
+	\begin{enumerate}
+	\item El número de almacén (W\_ID).
+	\item El número de la zona (D\_ID).
+	\item Los datos de un cliente: a veces por su identificador  (C\_W\_ID,
+	C\_D\_ID, C\_ID), y a veces por su apellido (C\_LAST).
+	\end{enumerate}
+\item La terminal encarga el siguiente trabajo al servidor que se le ha asignado
+(Todos los detalles en \textit{Estado de pedido, perfil de la transacción}, Pag.
+\pageref{sec:estado-perfil}).
+	\begin{enumerate}
+	\item Se obtienen los datos del cliente.
+	\item Se obtiene el pedido del cliente con mayor O\_ID.
+	\item Se obtienen todas las líneas de dicho pedido.
+	\end{enumerate}
+\end{enumerate}
+\paragraph{Relaciones con otros casos de uso}
+Es utilizado por el caso de uso: realizar medida.
+
+\subsubsection{Envío}
+\paragraph{Introducción}
+Transacción de envío, donde el sistema elige un pedido que no esté enviado,
+selecciona uno de cada zona por cada almacén, y lo tramita como enviado.
+
+\paragraph{Actores}
+El usuario simulado.
+
+\paragraph{Pre condiciones}
+\begin{itemize}
+\item Es sistema está en ejecución.
+\item El sistema de almacenamiento ha sido poblado con datos según las reglas
+de poblado (Pag. \pageref{sec:poblado}).
+\item Esta transacción se ejecuta en un servidor lanzado para atender a
+las peticiones de una terminal simulada.
+\end{itemize}
+
+\paragraph{Post condiciones}
+\begin{itemize}
+\item Se ha marcado el pedido como enviado.
+\item El sistema de benchmark sigue funcionando.
+\item El sistema de almacenamiento contiene datos correctos y no corruptos.
+\end{itemize}
+
+\paragraph{Acciones}
+\begin{enumerate}
+\item El usuario simulado ha decidido que quiere realizar una transacción de
+envío de pedidos.
+\item El usuario simulado provee de los datos necesarios para dicha transacción
+a la terminal (Todos los detalles en \textit{Envío, datos de entrada}, Pag.
+\pageref{sec:envio-datosdeentrada}).
+	\begin{enumerate}
+	\item El número de almacén (W\_ID).
+	\item El número de la empresa de transportes (O\_CARRIER\_ID).
+	\item La fecha de envío (OL\_DELIVERY\_D).
+	\end{enumerate}
+\item La terminal encarga el siguiente trabajo al servidor que se le ha asignado
+(Todos los detalles en \textit{Envío, perfil de la transacción}, Pag.
+\pageref{sec:envio-perfil}). Para cada una de las zonas del almacén escogido:
+	\begin{enumerate}
+	\item Se selecciona el nuevo pedido más viejo, es decir el NO\_O\_ID más
+	pequeño, y se borra.
+	\item Se selecciona el pedido correspondiente al nuevo pedido borrado y
+	se actualiza la empresa de transportes (O\_CARRIER\_ID).
+	\item Para todas las líneas de pedido, calculamos el coste total y
+	actualizamos en cada línea la fecha de envío.
+	\item Al balance actual del cliente se le suma el total de las líneas de
+	pedido y se incrementa el número de pedidos enviados a ese cliente.
+	\end{enumerate}
+\end{enumerate}
+\paragraph{Relaciones con otros casos de uso}
+Es utilizado por el caso de uso: realizar medida.
+
+\subsubsection{Nivel de existencias}
+\paragraph{Introducción}
+Transacción de consulta de nivel de existencias, donde se revisan las últimas
+líneas de pedido de los últimos 20 pedidos en una zona y de esos productos se
+comprueban las existencias por si hace falta encargar más.
+
+\paragraph{Actores}
+El usuario simulado.
+
+\paragraph{Pre condiciones}
+\begin{itemize}
+\item Es sistema está en ejecución.
+\item El sistema de almacenamiento ha sido poblado con datos según las reglas
+de poblado (Pag. \pageref{sec:poblado}).
+\item Esta transacción se ejecuta en un servidor lanzado para atender a
+las peticiones de una terminal simulada.
+\end{itemize}
+
+\paragraph{Post condiciones}
+\begin{itemize}
+\item Se ha comprobado sin problemas las existencias de los productos incluidos
+en los últimos 20 pedidos de una zona.
+\item El sistema de benchmark sigue funcionando.
+\item El sistema de almacenamiento contiene datos correctos y no corruptos.
+\end{itemize}
+
+\paragraph{Acciones}
+\begin{enumerate}
+\item El usuario simulado ha decidido que quiere realizar una transacción de
+comprobar el nivel de existencias.
+\item El usuario simulado provee de los datos necesarios para dicha transacción
+a la terminal (Todos los detalles en \textit{Nivel de existencias, datos de
+entrada}, Pag. \pageref{sec:nivel-datosdeentrada}).
+	\begin{enumerate}
+	\item Un almacén (W\_ID).
+	\item Una zona dentro de ese almacén (D\_ID).
+	\item Un límite mínimo de existencias.
+	\end{enumerate}
+\item La terminal encarga el siguiente trabajo al servidor que se le ha asignado
+(Todos los detalles en \textit{Nivel de existencias, perfil de la transacción}, Pag.
+\pageref{sec:nivel-perfil}).
+	\begin{enumerate}
+	\item Obtenemos los datos de la zona, incluyendo el próximo número de
+	pedido.
+	\item Obtenemos todas las líneas de pedido correspondientes a los
+	últimos 20 pedidos de esa zona.
+	\item Para cada producto en la línea de pedido, comprobamos que el stock
+	del almacén no esté por debajo del límite indicado.
+	\end{enumerate}
+\end{enumerate}
+
+
+\paragraph{Relaciones con otros casos de uso}
+Es utilizado por el caso de uso: realizar medida.
+
+\subsection{Diagramas de secuencia}
+Por último, dentro de los casos de uso y para intentar sacar una pequeña lista de clases o subsistemas de
+análisis, así como intentar ver las partes en las que se divide la organización
+del benchmark TPC-C con las especificaciones que hemos indicado; se incluyen los
+diagramas de secuencia para los casos de uso más significativos.
+
+\subsubsection{Configurar Benchmark}
+Figura \ref{fig:sec-conf}.
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=8cm]{cap3/secuencia-configurar.pdf}
+\end{center}
+\caption{Diagrama de secuencia del caso de uso \textit{Configurar Benchmark}}
+\label{fig:sec-conf}
+\end{figure}
+\afterpage{\clearpage}
+
+\subsubsection{Realizar Medida}
+Figura \ref{fig:sec-real}.
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=13.5cm]{cap3/secuencia-ejecutar.pdf}
+\end{center}
+\caption{Diagrama de secuencia del caso de uso \textit{Realizar Medida}}
+\label{fig:sec-real}
+\end{figure}
+
+\subsubsection{Nuevo Pedido}
+Figura \ref{fig:sec-np}.
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=13.5cm]{cap3/secuencia-nuevopedido.pdf}
+\end{center}
+\caption{Diagrama de secuencia del caso de uso \textit{Nuevo Pedido}}
+\label{fig:sec-np}
+\end{figure}
+
+\subsection{Diagrama de clases de análisis}
+De estos diagramas de secuencia, ya que se han expuesto algunas posibles clases,
+podemos derivar las siguientes clases de análisis.
+\begin{itemize}
+\item \textit{Clase Terminal}: Dado que el usuario simulado, al fin y al cabo
+es simulado, los datos necesarios para cada transacción los \textit{generará}
+esta clase.
+\item \textit{Clase Servidor}: Es la encargada de realizar las transacciones;
+tiene una lista de los almacenes disponibles, y los utiliza como referencia para
+acceder a los datos. Realiza la lógica de negocio.
+\item \textit{Clase Sistema Almacenamiento}: Maneja las estructuras de datos
+para acceder, añadir, borrar y modificar registros de datos. Esta clase es usada
+por los múltiples servidores de manera concurrente.
+\item \textit{Clase IdAlmacenamiento}: Para completar a la clase servidor, y dado que en
+algún lugar se tienen que guardar las referencias a los diferentes sistemas de
+almacenamiento, que más tarde se enviaran al sistema de almacenamiento para que
+opere con ellos, se ha creado esta clase.
+\end{itemize}
+
+El diagrama de clases de análisis se encuentra en la figura
+\ref{fig:analisis-clases}.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=\textwidth]{cap3/analisis-clases.pdf}
+\end{center}
+\caption{Diagrama de clases de análisis}
+\label{fig:analisis-clases}
+\end{figure}

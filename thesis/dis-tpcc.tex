@@ -1,0 +1,340 @@
+\section{Subsistema TPC-C}
+Este subsistema es el encargado de ejecutar las pruebas de rendimiento para
+obtener una medición de dicho rendimiento, la unidad utilizada es el
+\textit{tpmC}, que consiste en medir el número de transacciones de \textit{nuevo
+pedido} que se realizan por segundo; dicho número estará estrechamente
+relacionado con la rapidez del sistema en resolver el resto de transacciones
+para poder atender a las de nuevo pedido.
+
+Al igual que el sistema generador, este subsistema se maneja a través de un
+ejecutable que interactúa con el usuario. La secuencia de su función principal
+es la siguiente:
+\begin{enumerate}
+\item Depurar los parámetros de entrada: nombre del experimento y la ruta donde
+está ubicado; para poder acceder a los ficheros de carga y poblado.
+\item Poblar la base de datos con los ficheros de poblado. Esta tarea no se
+tiene en cuenta para la medición.
+\item Inicializar los sistemas de comunicación y sincronización con los
+servidores:
+	\begin{itemize}
+	\item Una zona de memoria compartida donde los servidores irán poniendo
+	sus estadísticas y que cuando finalicen será leída por el programa
+	principal para hacer un resumen y presentar los resultados de
+	rendimiento.
+	\item Una barrera para que todos los servidores comiencen a la vez.
+	\item Un índice compartido para que cada servidor tenga un identificador
+	único, partiendo del 0, y así puedan leer correctamente su fichero de
+	carga. Para esto también hace falta un cerrojo que controle el acceso
+	concurrente a dicho índice.
+	\end{itemize}
+\item Lanzar los servidores, cuidando de que todos comiencen simultáneamente, y esperar
+a que finalicen sus tareas.
+\item Cuando todos hayan finalizado, preparar un fichero con las estadísticas.
+\end{enumerate}
+
+Los ficheros que componen este subsistema, junto con su funcionalidad, son los
+siguientes:
+\begin{itemize}
+\item \texttt{tpcc.parmacs.c} Programa principal que también implementa la
+funcionalidad básica del servidor.
+\item \texttt{transacciones.c} Implementa el trabajo que tiene que realizar un
+servidor para satisfacer cada transacción.
+\item \texttt{cargador.c} Realiza el poblado inicial de la base de datos,
+inicializando todas las estructuras de almacenamiento necesarias.
+\end{itemize}
+
+\subsection{Lectura y carga del poblado}
+Para que los servidores comienzan a trabajar, necesitan que las estructuras de
+almacenamiento estén: creadas y pobladas. De esta tarea se encarga la función
+\texttt{cargador}, que rellena una estructura llamada \texttt{BBDD} con los
+árboles y las listas necesarias.
+
+\subsubsection{Estructuras de datos}
+Ya que los servidores necesitan trabajar con 9 almacenes, se ha dispuesto una
+estructura de datos que sirve como directorio para acceder a los mismos. La
+estructura se llama \texttt{struct\_BBDD}. Esta estructura también proporciona
+un par de datos al programa principal, como son el número de servidores y el
+número de transacciones totales.
+\paragraph{$\triangleright$ struct struct\_BBDD}
+Directorio de estructuras de almacenamiento de datos.
+\begin{itemize}
+\item \texttt{Arbol *productos;} Estructura de almacenamiento para los
+productos.
+\item \texttt{Arbol *almacenes;} Estructura de almacenamiento para los
+almacenes.
+\item \texttt{Arbol *existencias;} Estructura de almacenamiento para las
+existencias.
+\item \texttt{Arbol *zonas;} Estructura de almacenamiento para las zonas.
+\item \texttt{Arbol *clientes;} Estructura de almacenamiento para los clientes.
+\item \texttt{ListaEnlazada *historico;} Estructura de almacenamiento para el
+histórico de pedidos.
+\item \texttt{Arbol *pedidos;} Estructura de almacenamiento para los pedidos.
+\item \texttt{Arbol *lineaspedido;} Estructura de almacenamiento para las lineas
+de pedido.
+\item \texttt{Arbol *nuevospedidos;} Estructura de almacenamiento para los
+nuevos pedidos.
+\item \texttt{uint32\_t numServ;} Número de servidores a ejecutar.
+\item \texttt{uint64\_t numTran;} Número total de transacciones a ejecutar entre
+todos los servidores.
+\end{itemize}
+
+\paragraph{$\triangleright$ BBDD}
+El tipo de dato BBDD se define como:\\
+\texttt{typedef struct struct\_BBDD BBDD;}
+
+El programa principal pide al \textit{cargador} que rellene esa estructura, el
+cargador lee los ficheros de poblado y constantes, y la rellena; más tarde el
+programa principal la utilizará para saber el número de servidores que
+lanzar y comprobar si se han ejecutado todas las transacciones; los servidores
+la utilizarán para acceder a los datos.
+
+\subsubsection{Interfaz de uso}
+La función de carga se declara de la siguiente manera:
+
+\paragraph{$\triangleright$ cargador}
+\begin{itemize}
+\item Declaración: \texttt{void cargador(BBDD *bd,char *nombre\_base)}
+\item Descripción: Carga el poblado de la base de datos y las constantes de
+funcionamiento. Utiliza las definiciones de \texttt{terminal.h} para conocer el
+formato de lectura de los ficheros de poblado.
+\item Parámetros:
+        \begin{itemize}
+	\item \texttt{BBDD *bd} (salida): Directorio de estructuras de
+	almacenamiento a inicializar y poblar.
+	\item \texttt{char *nombre\_base} (entrada): Dado que los experimentos
+	están en un directorio, y todos los ficheros de un experimento, tienen
+	antepuesto el nombre del mismo. Esta cadena es la ruta común de acceso a
+	los ficheros de un experimento. Por ejemplo, el experimento ``uno'' en
+	el directorio ``experimentos'', hace que esta cadena tenga el valor:
+	\texttt{experimentos/uno\_}. Donde \_ es el separador usado en todos los
+	ficheros para separar el tipo de fichero del nombre del experimento.
+	\end{itemize}
+\end{itemize}
+
+Y el algoritmo que ejecuta es el descrito a continuación:
+\begin{enumerate}
+\item Para cada estructura de almacenamiento:
+	\begin{enumerate}
+	\item Abrir el fichero de poblado.
+	\item Crear la estructura de almacenamiento.
+	\item Para cada línea del fichero de poblado, añadirla a la estructura
+	de almacenamiento.
+	\item Cerrar el fichero y pasar a la siguiente estructura.
+	\end{enumerate}
+\item Por último, cargar los parámetros de número de servidores y número de
+transacciones.
+\end{enumerate}
+
+\subsection{Servidor de transacciones}
+El servidor de transacciones es la función encargada de ejecutar la carga de
+transacciones de un fichero de carga, y de ir anotando que transacciones ha
+ejecutado. Para esto el servidor requiere del módulo \texttt{transacciones.c}
+que implementa la \textit{lógica de negocio} del benchmark tpc-c para cada
+transacción.
+
+\subsubsection{Función servidor}
+La organización de estas tareas la realiza la función
+\textit{servidor} localizada en el fichero \texttt{tpcc.parmacs.c}.
+
+\paragraph{$\triangleright$ servidor}
+\begin{itemize}
+\item Declaración: \texttt{void servidor(void)}
+\item Descripción: Procesa transacciones a partir de un fichero de carga y anota
+cuántas transacciones ha realizado y de qué tipo son.
+\item Parámetros:
+        \begin{itemize}
+        \item Ninguno. Utiliza variables globales del servidor
+        \end{itemize}
+\item Variables globales que utiliza.
+	\begin{itemize}
+	\item \texttt{struct semaforos *sems;} Cerrojo de acceso al índice de
+	servidores.
+	\item \texttt{int *indice;} Índice para asignar a cada servidor un
+	identificador.
+	\item \texttt{uint64\_t **estadisticas} Vector de vectores, donde existe
+	un vector para almacenar la cantidad de transacciones de cada tipo por
+	cada proceso.
+	\item \texttt{BBDD principal;} Directorio de acceso a las estructuras de
+	almacenamiento.
+	\item \texttt{char nombre\_base[512];} Base de la ruta de acceso al
+	fichero de carga.
+	\item \texttt{struct barreras *bars;} Barrera de inicialización, para
+	que todos los servidores comiencen a la vez.
+	\end{itemize}
+\end{itemize}
+
+El trabajo que realiza es parecido a la función de carga de poblado, pero en
+este caso sólo lee de su fichero de carga de trabajo.
+\begin{enumerate}
+\item Obtiene su índice de servidor, gracias al cerrojo de índice y a la
+variable compartida \textit{índice}.
+\item Accede al fichero de carga, mediante la ruta parcial
+\textit{nombre\_base}.
+\item Utiliza la barrera para esperar que todos los servidores restantes hayan
+hecho los dos pasos anteriores.
+\item Hasta finalizar el fichero de carga:
+	\begin{enumerate}
+	\item Lee un número del fichero de carga, que es el tipo de transacción
+	a realizar.
+	\item Ejecuta dicha transacción, gracias al modulo
+	\texttt{transacciones.c}
+	\item Anota la transacción realizada.
+	\end{enumerate}
+\item Cierra el fichero de carga y finaliza.
+\end{enumerate}
+
+\subsubsection{Transacciones}
+El esfuerzo que realiza el sistema de pruebas, mediante este benchmark, está
+implementado en 5 transacciones. Dichas transacciones, recordemos, simulan
+la carga de trabajo de la base de datos de una empresa donde se realizan:
+pedidos, envíos, consultas de estado y stock, y pagos.
+
+Para esta implementación se han \textit{traducido} las especificaciones del
+apartado \ref{sec:transacciones} (pag. \pageref{sec:transacciones}), al lenguaje
+C, utilizando para el acceso a los datos, el interfaz del subsistema de
+almacenamiento.
+
+Los 5 tipos de transacciones están implementados en el fichero
+\texttt{transacciones.c}, mediante 5 funciones.
+
+\paragraph{$\triangleright$ nuevo\_pedido}
+\begin{itemize}
+\item Declaración: \texttt{void nuevo\_pedido(BBDD *bd,FILE *fich)}
+\item Descripción: Ejecuta la transacción de nuevo pedido, definida en el apartado
+\ref{sec:nuevopedido-perfil} (pag. \pageref{sec:nuevopedido-perfil}).
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{BBDD *bd} (entrada): Directorio de acceso a las
+estructuras de almacenamiento.
+        \item \texttt{FILE *fich} (entrada): puntero al fichero de carga. A
+partir de este puntero se pueden leer los datos de entrada de la transacción.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ pago}
+\begin{itemize}
+\item Declaración: \texttt{void pago(BBDD *bd,FILE *fich)}
+\item Descripción: Ejecuta la transacción de pago, definida en el apartado
+\ref{sec:pago-perfil} (pag. \pageref{sec:pago-perfil}).
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{BBDD *bd} (entrada): Directorio de acceso a las
+estructuras de almacenamiento.
+        \item \texttt{FILE *fich} (entrada): puntero al fichero de carga. A
+partir de este puntero se pueden leer los datos de entrada de la transacción.
+        \end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ estado\_pedido}
+\begin{itemize}
+\item Declaración: \texttt{void estado\_pedido(BBDD *bd,FILE *fich)}
+\item Descripción: Ejecuta la transacción de consulta de estado de un pedido,
+definida en el apartado \ref{sec:estado-perfil} (pag. \pageref{sec:estado-perfil}).
+\item Parámetros:
+        \begin{itemize}
+       	\item \texttt{BBDD *bd} (entrada): Directorio de acceso a las
+estructuras de almacenamiento.
+        \item \texttt{FILE *fich} (entrada): puntero al fichero de carga. A
+partir de este puntero se pueden leer los datos de entrada de la transacción.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ envío}
+\begin{itemize}
+\item Declaración: \texttt{void envío(BBDD *bd,FILE *fich);}
+\item Descripción: Ejecuta la transacción de envío de pedidos, definida en el
+apartado \ref{sec:envio-perfil} (pag. \pageref{sec:envio-perfil}).
+\item Parámetros:
+        \begin{itemize}
+        \item \texttt{BBDD *bd} (entrada): Directorio de acceso a las
+estructuras de almacenamiento.
+        \item \texttt{FILE *fich} (entrada): puntero al fichero de carga. A
+partir de este puntero se pueden leer los datos de entrada de la transacción.
+	\end{itemize}
+\end{itemize}
+
+\paragraph{$\triangleright$ nivel\_existencias}
+\begin{itemize}
+\item Declaración: \texttt{void nivel\_existencias(BBDD *bd,FILE *fich)}
+\item Descripción: Ejecuta la transacción de consulta del nivel de existencias,
+definida en el apartado \ref{sec:nivel-perfil} (pag.
+\pageref{sec:nivel-perfil}).
+\item Parámetros:
+        \begin{itemize}
+	\item \texttt{BBDD *bd} (entrada): Directorio de acceso a las
+estructuras de almacenamiento.
+        \item \texttt{FILE *fich} (entrada): puntero al fichero de carga. A
+partir de este puntero se pueden leer los datos de entrada de la transacción.
+	\end{itemize}
+\end{itemize}
+
+\subsection{Programa tpcc}
+Como último paso y culminación de todos los subsistemas y módulos, se encuentra
+la aplicación tpcc, implementada en el fichero \texttt{tpcc.parmacs.c}. Esta
+aplicación ejecuta la función principal descrita al principio de esta sección
+sobre el subsistema TPC-C.
+
+Se ha comentado el algoritmo de trabajo de dicha función, pero no se ha
+detallado el interfaz de comunicación con el usuario. Dicho interfaz es muy
+sencillo, ya que la aplicación tpcc sólo requiere dos parámetros para funcionar:
+\begin{itemize}
+\item Nombre del experimento: es decir, el prefijo de los ficheros del
+experimento.
+\item Directorio de trabajo del experimento: del cual leer los ficheros de carga
+de trabajo y de poblado, y en el cual generar un fichero de estadísticas.
+\end{itemize}
+
+Ejemplo:\\
+\texttt{./tpcc prueba1 mispruebas}
+
+Después de la ejecución del programa, en el directorio \textit{mispruebas}, se
+habrá generado un fichero con las estadísticas. Las estadísticas se calculan con
+el siguiente algoritmo.
+
+\begin{enumerate}
+\item Se espera a que finalicen los procesos.
+\item Una vez finalizados los servidores se comienza la realización de las
+estadísticas.
+\item La zona de memoria para estadística se compone de tantos vectores de
+estadísticas como procesos servidores se hayan lanzado.
+\item Un vector de estadísticas es un vector de 5 enteros de 64 bits que
+contabiliza la cantidad de cada uno de los 5 tipos de transacciones.
+\item Se contabilizan todas las estadísticas: para cada vector de estadísticas
+se suman sus 5 valores y todas esas sumas se agregan a un contador de total de
+transacciones.
+\item Se utiliza el vector 0 para hacer las estadísticas totales por tipo: se
+recorren todos los vectores y se suman todos los del tipo 0, tipo 1, \ldots
+\item Se imprime a un fichero una estadística de porcentajes de transacciones por tipo.
+\item Se imprime, además, un total de transacciones por segundo.
+\item Y por último, se imprime el total de transacciones de nuevo pedido por
+minuto, el \textit{tpmC}.
+\end{enumerate}
+
+\subsection{Banco de pruebas del subsistema}
+Dado que en este subsistema se prueba la aplicación final, para comprobar el
+correcto funcionamiento de todos los módulos hay que verificar casi todas las
+condiciones del análisis. En la mayoría de casos esta revisión no se ha podido
+automatizar, por lo que las revisiones manuales han sido relativamente pocas.
+
+La lista de pruebas que se ha realizado al subsistema y que ha superado han
+sido las siguientes:
+\begin{itemize}
+\item Comprobar que todas las transacciones obtienen los datos correctamente de
+las estructuras de almacenamiento. Esta comprobación se realiza volcando las
+acciones de las transacciones por pantalla.
+\item Comprobar que cada transacción realiza su trabajo, esto se realiza de dos
+maneras:
+	\begin{itemize}
+	\item De manera directa se muestra por pantalla cada una de las acciones
+	de la transacción. Si por ejemplo, se realiza una búsqueda, se muestran
+	los datos encontrados; cálculos realizados y otra información de lo que
+	está sucediendo en un instante dado.
+	\item De manera indirecta, algunas transacciones almacenan datos que son
+	más tarde utilizados por otras. Por ejemplo, un nuevo pedido, con el
+	paso del tiempo, será enviado, luego la transacción de envío necesitará
+	esos datos y se verán reflejados en la pantalla.
+	\end{itemize}
+\item Comprobación del sistema de manejo de parámetros de entrada. Debido a que
+se forma una ruta con los dos parámetros de entrada, hay que asegurar que se
+accede a todos los ficheros.
+\end{itemize}
