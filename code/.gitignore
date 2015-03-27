@@ -10,3 +10,6 @@ le_test
 # Generated headers
 listaenlazada.h
 readwrite.h
+
+# vim
+*.swp
