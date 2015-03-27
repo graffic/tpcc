@@ -5,6 +5,7 @@
 #include "cargador.h"
 //#define DEBUG
 #include "debug.h"
+#include "transacciones.h"
 
 /* Parmacs */
 MAIN_ENV

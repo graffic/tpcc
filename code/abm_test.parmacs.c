@@ -153,7 +153,7 @@ void fill(Arbol *arb) {
 	for(i=0;i<paso;i++)
 		for(j=i;j<MAX;j+=paso) {
 			rellena(&rp,j);
-			printf("%s====> Insertando %d %d%s\n",VERDE,rp.num,rp.cuad,NORMAL);
+			printf("%s====> Insertando %d %ld%s\n",VERDE,rp.num,rp.cuad,NORMAL);
 			abm_insertar(arb,&rp);
 			contador++;
 			autocheck(arb,contador);
@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
 	//int vi[]={};
 	//int vo[]={};
 	
-	printf("Tamaño de la clave: %d, tamaño del registro; %d regAddr:%p cmpAddr:%p\n",
+	printf("Key size: %lu, register size: %lu regAddr:%p cmpAddr:%p\n",
 		RP_KEYSIZE,sizeof(rPrueba),&rp,&compara2Prueba);
 
 	/* Creamos el arbol */
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
 	abm_it_init(&it,arb,(itFunc)&encajaPares,NULL);
 	puts("=====> Iterando con el arbol vacio");
 	while (abm_iterar(&it,&rp)!=ABM_FIN) 
-		printf("Iterando: %d %d %d %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
+		printf("Iterando: %d %ld %ld %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
 	abm_it_fin(&it);
 	
 	/* duplicado */
@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
 	
 	/* Buscar */
 	rp.num=5,rp.cuad=25,rp.cubo=0,rp.ascii[0]='\0';
-	if (abm_buscar(arb,&rp)==ABM_OK) printf("Buscando 5,25 -> %d %d %d %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
+	if (abm_buscar(arb,&rp)==ABM_OK) printf("Buscando 5,25 -> %d %ld %ld %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
 	else puts("ERROR Buscando");
 
 	/* Modificar */
@@ -269,14 +269,14 @@ int main(int argc, char **argv) {
 	abm_it_init(&it,arb,(itFunc)&encajaPares,NULL);
 	puts("=====> Iterando buscando pares");
 	while (abm_iterar(&it,&rp)!=ABM_FIN) 
-		printf("Iterando: %d %d %d %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
+		printf("Iterando: %d %ld %ld %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
 	abm_it_fin(&it);
 
 	/* Iterador chachi */
 	abm_it_init(&it,arb,(itFunc)&multiplode,(void *)7);
 	puts("=====> Iterando buscando multiplos de 7");
 	while (abm_iterar(&it,&rp)!=ABM_FIN) 
-		printf("Iterando: %d %d %d %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
+		printf("Iterando: %d %ld %ld %s\n",rp.num,rp.cuad,rp.cubo,rp.ascii);
 	abm_it_fin(&it);
 
 	puts("=====> Volcando"),dump_node(arb->raiz,0);

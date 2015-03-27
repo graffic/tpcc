@@ -1,3 +1,4 @@
+#include <string.h>
 #include "registros.h"
 
 /** Ayuda a la comparación - Números enteros solos 

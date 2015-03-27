@@ -10,6 +10,7 @@
 #include "basicgen.h"
 #include "generador.h"
 #include "registros.h"
+#include "terminal.h"
 
 /* Macros de ayuda */
 /* Forma general de abrir un fichero */
@@ -69,7 +70,7 @@ void generarNuevosPedidos(int inicio,int cant,RegZona *rz) {
 	ABRIR_FICHERO(fnp,FICHERO_NUEVOSPEDIDOS,fmodo)
 
 	/* Informacion extra */
-	printf("-> Generando %d nuevos pedidos (partiendo de %d) para la zona Nº %d del almacen Nº %d\n",
+	printf("-> Generando %d nuevos pedidos (partiendo de %d) para la zona Num %d del almacen Num %d\n",
 	       cant,inicio,rz->d_id,rz->d_w_id);
 	
 	/* Generamos nuevos pedidos */
@@ -145,7 +146,7 @@ void generarPedidos(int num,RegZona *rz) {
 	ABRIR_FICHERO(fped,FICHERO_PEDIDOS,fmodo)
 	
 	/* Informacion extra */
-	printf("-> Generando %d pedidos para la zona Nº %u del almacen Nº %u\n",num,rz->d_id,rz->d_w_id);
+	printf("-> Generando %d pedidos para la zona Num %u del almacen Num %u\n",num,rz->d_id,rz->d_w_id);
 	
 	/* Inicializar pseudo-permutacion */
 	clientes=(char*)malloc(sizeof(char)*num);
@@ -205,7 +206,7 @@ void generarClientes(int num,RegZona *rz) {
 	ABRIR_FICHERO(fhis,FICHERO_HISTORICO,fmodo)
 
 	/* Informacion extra */
-	printf("-> Generando %d clientes para la zona Nº %u del almacen Nº %u\n",num,rz->d_id,rz->d_w_id);
+	printf("-> Generando %d clientes para la zona Num %u del almacen Num %u\n",num,rz->d_id,rz->d_w_id);
 
 	/* Generar y almacenar clientes */
 	rc.c_w_id=rz->d_w_id;
@@ -271,7 +272,7 @@ void generarExistencias(int num,RegAlmacen *ra) {
 	ABRIR_FICHERO(fext,FICHERO_EXISTENCIAS,fmodo)
 	
 	/* Informacion extra */
-	printf("-> Generando %d entradas de stock para el almacen Nº %u\n",num,ra->w_id);
+	printf("-> Generando %d entradas de stock para el almacen Num %u\n",num,ra->w_id);
 	
 	/* Generar y almacenar existencias */
 	re.s_w_id=ra->w_id;
@@ -318,7 +319,7 @@ void generarZonas(int num,RegAlmacen *ra) {
         ABRIR_FICHERO(fzon,FICHERO_ZONAS,fmodo)
 
 	/* Informacion extra */
-	printf("-> Generando %d zonas para el almacen Nº %u\n",num,ra->w_id);
+	printf("-> Generando %d zonas para el almacen Num %u\n",num,ra->w_id);
 	
         /* Generar y almacenar zonas */
         rz.d_w_id=ra->w_id;
@@ -530,7 +531,7 @@ void inicializar(char *experimento) {
 		}
 
 		/* Buscamos carga */
-		len=snprintf(carga,300,"%s_carga",experimento,experimento);
+		len=snprintf(carga,300,"%s_carga",experimento);
 		/* Cambiamos de directorio para hace un unlink mas facilmente */
 		chdir(experimento);
 		while((ds=readdir(direc))!=NULL) {

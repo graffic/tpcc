@@ -43,8 +43,8 @@ void gen_a_string(char *destino,int a, int b) {
 		destino[pos]=caracteres[random()%MAPACAR_LEN];	
 	
 	/* No hay espacios al principio o al final (util para la lectura) */
-	if (destino[0]==' ') destino[0]='Ñ';
-	if (destino[len-1]==' ') destino[len-1]='ñ';
+	if (destino[0]==' ') destino[0]='A';
+	if (destino[len-1]==' ') destino[len-1]='B';
 	
 	/* Finalizar la cadena */
 	destino[pos]=0;

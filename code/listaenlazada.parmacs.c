@@ -112,7 +112,7 @@ int le_borrar_primero(ListaEnlazada *lista, void *registro) {
 		lista->principio=lista->principio->siguiente;
 		DEBUGF("[le_borrar_primero] Nuevo principio: %p\n",lista->principio);
 		if(lista->principio==NULL) {
-			lista->fin==NULL;
+			lista->fin=NULL;
 			DEBUGS("[le_borrar_primero] lista->fin es ahora NULL");
 		}
 		UNLOCK(lista->bloqueo)

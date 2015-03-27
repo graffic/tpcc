@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 //#define DEBUG
 #include "debug.h"
 #include "terminal.h"
