@@ -1,0 +1,8 @@
+# Binaries
+abm_test
+generador
+tpcc
+le_test
+
+# Objects
+*.o
