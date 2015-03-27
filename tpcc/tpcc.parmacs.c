@@ -55,7 +55,7 @@ int main(int argc,char *argv[]) {
 	else {
 		DEBUGF("Modo de uso:\n"
 		       "\t%s <nombre_experimento> [<directorio_base>]\n",argv[0]);
-		return;
+		return 1;
 	}
 	DEBUGF("[tpcc] Inicio - Nombre base: \"%s\"\n",nombre_base);
 	/* Inicializar la base de datos con la informacion generada */
@@ -117,7 +117,7 @@ int main(int argc,char *argv[]) {
 	                         trans_text[i],((float)estadisticas[0][i]*100)/(float)tottrans,
 				 estadisticas[0][i]);
 	fprintf(fstad,"Transacciones por segundo: %.4f\n",(float)tottrans/(float)(fin-inicio));
-	fprintf(fstad,"(%llu transacciones en %u segundos)\n",tottrans,fin-inicio);
+	fprintf(fstad,"(%llu transacciones en %ld segundos)\n",tottrans,fin-inicio);
 	fprintf(fstad,"tpmC - %.4f (transacciones de nuevo pedido por minuto)\n",
 	 (float)estadisticas[0][0]/((float)(fin-inicio)/60));
 	fclose(fstad);
