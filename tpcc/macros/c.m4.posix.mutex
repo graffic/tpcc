@@ -1,0 +1,430 @@
+divert(-1)
+
+#############################################
+##  ANL Macros for SPLASH/SPLASH2          ##
+##  Based on POSIX threads                 ##
+##  Jim Nilsson, 2001                      ##
+##                                         ##
+##  Changes, Magnus Ekman 2002:            ##
+##  Pause implemented. Warning: only       ##
+##  partial implementation. An array of    ##
+##  pause flags is not supported           ##
+##                                         ##
+#############################################
+
+#############################################
+## 31-08-05
+## - Añadir #include <stdlib.h> por llamadas a *alloc
+## - Definir G_FREE como free (pa algo usamos threads)
+## - Definir GET_PID como pthread_self()
+##
+## 20-12-04: adaptación a sistema linux sin SIMICS
+## - Supresión de lo relacionado con Magic
+##
+#############################################
+
+define(NEWPROC,) dnl
+
+
+#################################################################
+define(BARRIER, `
+  /* BEGIN_BARRIER */
+  {
+//    Magic_Create(MAGIC_BARRIER_GROUP, MAGIC_BARRIER_START);
+
+    int status, cancel, tmp, cycle;
+
+    if (($1).valid != BARRIER_VALID) {
+      printf("Barrier not initialized!\n");
+      exit(-1);
+    }
+
+    status = pthread_mutex_lock(&(($1).mutex));
+    if (status != 0) {
+      printf("Problem with barrier mutex!\n");
+      exit(-1);
+    }
+
+    if (($1).counter == 0) {
+      ($1).counter = ($2);
+      ($1).threshold = ($1).counter;
+    }
+
+    cycle = ($1).cycle;
+
+    if (--(($1).counter) == 0) {
+      ($1).cycle = !(($1).cycle);
+      ($1).counter = ($1).threshold;
+      status = pthread_cond_broadcast(&(($1).cv));
+      if (status == 0)
+	status = -1;
+    } else {
+      pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &cancel);
+      while (cycle == ($1).cycle) {
+	status = pthread_cond_wait(&(($1).cv), &(($1).mutex));
+	if (status != 0)
+	  break;
+      }
+      pthread_setcancelstate(cancel, &tmp);
+    }
+    pthread_mutex_unlock(&(($1).mutex));
+//    Magic_Create(MAGIC_BARRIER_GROUP, MAGIC_BARRIER_STOP);
+  }
+  /* END_BARRIER */
+')
+
+define(BARDEC, `
+  /* BEGIN_BARDEC */
+  ANL_barrier_t $1; 
+  /* END_BARDEC */
+')
+
+
+define(BARINIT, `
+  /* BEGIN_BARINIT */
+  {
+    ($1).threshold = ($1).counter;
+    ($1).cycle = 0;
+    pthread_mutex_init(&(($1).mutex), NULL);
+    pthread_cond_init(&(($1).cv), NULL);
+    ($1).valid = BARRIER_VALID;
+  }
+  /* END_BARINIT */
+')
+
+################################################
+
+define(GSDEC, `int ($1);')
+define(GSINIT, `{ ($1) = 0; }')
+define(GETSUB, `{ 
+  if (($1)<=($3)) 
+    ($2) = ($1)++; 
+  else { 
+    ($2) = -1; 
+    ($1) = 0; 
+  }
+}')
+
+################################################
+
+define(NU_GSDEC, `int ($1);')
+define(NU_GSINIT, `{ ($1) = 0; }')
+define(NU_GETSUB, `GETSUB($1,$2,$3,$4)')
+
+################################################
+
+define(ADEC, `int ($1);')
+define(AINIT, `{;}')
+define(PROBEND, `{;}')
+
+################################################
+
+define(LOCKDEC, ` 
+  /* BEGIN_LOCKDEC */
+  pthread_mutex_t $1;
+  /* END_LOCKDEC */
+')
+
+define(LOCKINIT, `
+  /* BEGIN_LOCKINIT */
+  {
+    pthread_mutex_init(&($1), NULL);
+  }
+  /* END_LOCKINIT */
+')
+
+define(LOCK, `
+  /* BEGIN_LOCK */
+  {
+//    Magic_Create(MAGIC_LOCK_GROUP, MAGIC_LOCK_START);
+    pthread_mutex_lock(&($1));
+//    Magic_Create(MAGIC_LOCK_GROUP, MAGIC_LOCK_STOP);
+  }
+  /* END_LOCK */
+')
+
+define(UNLOCK, `
+  /* BEGIN_UNLOCK */
+  {
+//    Magic_Create(MAGIC_LOCK_GROUP, MAGIC_UNLOCK_START);
+    pthread_mutex_unlock(&($1));
+//    Magic_Create(MAGIC_LOCK_GROUP, MAGIC_UNLOCK_STOP);
+  }
+  /* END_UNLOCK */
+')
+
+#################################################################
+
+define(NLOCKDEC, `int ($1);')
+define(NLOCKINIT, `{;}')
+define(NLOCK, `{;}')
+define(NUNLOCK, `{;}')
+
+#################################################################
+
+define(ALOCKDEC, ` 
+  /* BEGIN_ALOCKDEC */
+  pthread_mutex_t $1[$2];
+  /* END_ALOCKDEC */
+')
+
+define(ALOCKINIT, `
+  /* BEGIN_ALOCKINIT */
+  {
+    int i; 
+
+    for (i = 0; i < ($2); i++)
+      LOCKINIT(($1)[i]);
+  }
+  /* END_ALOCKINIT */
+')
+
+define(ALOCK, `
+  /* BEGIN_ALOCK */
+  LOCK(($1)[($2)]);
+  /* END_ALOCK */
+')
+
+define(AULOCK, `
+  /* BEGIN_AULOCK */
+  UNLOCK(($1)[($2)]);
+  /* END_AULOCK */
+')
+
+#################################################################
+
+
+define(PAUSEDEC, `
+  /* BEGIN_PAUSEDEC */
+    pthread_mutex_t $1_mutex;
+    pthread_cond_t $1_cv;
+    volatile int $1_flag;
+  /* END_PAUSEDEC */
+')
+
+define(PAUSEINIT, `
+  /*BEGIN_PAUSEINIT*/
+{
+    pthread_mutex_init(&($1_mutex), NULL);
+    pthread_cond_init(&($1_cv), NULL);  
+    $1_flag = 0;
+}
+  /*END_PAUSEINIT*/
+')
+
+define(CLEARPAUSE, `
+  /*BEGIN_CLEARPAUSE*/
+{
+   pthread_mutex_lock(&($1_mutex));
+   $1_flag = 0;
+   pthread_mutex_unlock(&($1_mutex));
+}
+  /*END_CLEARPAUSE*/
+')
+
+define(SETPAUSE, `
+  /*BEGIN_SETPAUSE*/
+{
+   pthread_mutex_lock(&($1_mutex));
+   $1_flag = 1;
+   pthread_cond_broadcast(&(($1_cv)));
+   pthread_mutex_unlock(&($1_mutex));	
+}
+  /*END_SETPAUSE*/
+')
+
+define(EVENT, `{;}')
+define(WAITPAUSE, `
+{
+  pthread_mutex_lock(&($1_mutex));
+  if(!$1_flag)
+  {
+      pthread_cond_wait(&($1_cv), &($1_mutex));    
+  }
+  pthread_mutex_unlock(&($1_mutex));	
+}
+')
+
+define(PAUSE, `{;}')
+
+#################################################################
+
+define(AUG_ON, ` ')
+define(AUG_OFF, ` ')
+define(TRACE_ON, ` ')
+define(TRACE_OFF, ` ')
+define(REF_TRACE_ON, ` ')
+define(REF_TRACE_OFF, ` ')
+define(DYN_TRACE_ON, `;')
+define(DYN_TRACE_OFF, `;')
+define(DYN_REF_TRACE_ON, `;')
+define(DYN_REF_TRACE_OFF, `;')
+define(DYN_SIM_ON, `;')
+define(DYN_SIM_OFF, `;')
+define(DYN_SCHED_ON, `;')
+define(DYN_SCHED_OFF, `;')
+define(AUG_SET_LOLIMIT, `;')
+define(AUG_SET_HILIMIT, `;')
+
+#################################################################
+
+define(MENTER, `{;}')
+define(DELAY, `{;}')
+define(CONTINUE, `{;}')
+define(MEXIT, `{;}')
+define(MONINIT, `{;}')
+
+#################################################################
+
+define(WAIT_FOR_END, `
+  /* BEGIN_WAIT_FOR_END */
+  {
+//    Magic_Create(MAGIC_SYSTEM_GROUP, MAGIC_PARALLEL_STOP);
+    int i;
+    for (i = 0; i < ANL_shared.ctr; i++)
+      pthread_join(ANL_shared.tid[i], NULL);
+  }
+  /* END_WAIT_FOR_END */
+')
+
+#################################################################
+
+
+define(CREATE, `
+  /* BEGIN_CREATE */
+  {
+
+    if (pthread_create(&(ANL_shared.tid[ANL_shared.ctr++]),
+                       &(ANL_shared.attr), (void *)(&($1)), NULL)) {
+      printf("pthread_create() failed!\n");
+      exit(-1);
+    }
+  }
+  /* END_CREATE */
+')
+
+
+define(MAIN_INITENV, `
+  /* BEGIN_MAIN_INITENV */
+  {
+//    Magic_Create(MAGIC_SYSTEM_GROUP, MAGIC_PROGRAM_START);
+    ANL_shared.max_processors = 2048;
+    ifelse($1, , `ANL_shared.processors = ANL_shared.max_processors;',
+                 `ANL_shared.processors = $1;')
+    ANL_shared.ctr = 0;
+    ANL_shared.tid = (pthread_t *)calloc(ANL_shared.processors, sizeof(pthread_t));
+    /*  Concurrency testing  */
+//    thr_setconcurrency(32);
+    /*  End concurrency testing  */
+    pthread_attr_init(&ANL_shared.attr);
+    pthread_attr_setscope(&ANL_shared.attr, PTHREAD_SCOPE_SYSTEM);
+  }
+  /* END_MAIN_INITENV */
+') 
+
+
+define(MAIN_END, `
+  /* BEGIN_MAIN_END */
+//  Magic_Create(MAGIC_SYSTEM_GROUP, MAGIC_PROGRAM_STOP);
+  /* END_MAIN_END */
+')
+
+
+define(MAIN_ENV,`
+/*  BEGIN_MAIN_ENV  */
+COMMON_ENV
+ANL_shared_t ANL_shared;
+/*  END_MAIN_ENV  */
+')
+
+
+define(ENV, ` ')
+
+define(EXTERN_ENV, `
+/* BEGIN_EXTERN_ENV */
+COMMON_ENV
+extern ANL_shared_t ANL_shared;
+/* END_EXTERN_ENV */
+')
+
+#################################################################
+
+define(G_MALLOC, `malloc($1);') 
+define(G_FREE, `free($1);')
+define(G_MALLOC_F, `malloc($1)')
+define(NU_MALLOC, G_MALLOC($1))
+define(NU_FREE, `;')
+define(NU_MALLOC_F, `malloc($1)')
+
+#################################################################
+
+define(GET_HOME, `{($1) = 0;}')
+define(GET_PID, `pthread_self()')
+define(AUG_DELAY, `{sleep ($1);}')
+define(ST_LOG, `{;}')
+define(SET_HOME, `{;}')
+
+define(CLOCK, `
+  /* BEGIN_CLOCK */
+  {
+    struct timeval sc_tp;
+    if (gettimeofday (&sc_tp, (struct timezone *)0)) {
+      perror(""); 
+      fprintf (stderr,"ERROR in clock macro\n"); 
+      exit (-1);
+    }
+    $1 = (sc_tp.tv_sec & 0x7ff)*1000000 + sc_tp.tv_usec; 
+  }
+  /* END_CLOCK */
+')
+
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+
+define(COMMON_ENV, `
+#define _REENTRANT
+#define BARRIER_VALID   0xdbcafe
+/*  Support static initialization of barriers  */
+#define BARRIER_INITIALIZER(cnt) \
+    {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, \
+    BARRIER_VALID, cnt, cnt, 0}
+
+#include <errno.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdlib.h>
+//#include "/system3/simics/benchmarks/macros/magic-defaults.h"
+
+#ifndef _ANL_bar_def
+#define _ANL_bar_def
+/*  barrier type  */
+typedef struct _ANL_barrier {
+    pthread_mutex_t     mutex;          /* Control access to barrier */
+    pthread_cond_t      cv;             /* wait for barrier */
+    int                 valid;          /* set when valid */
+    int                 threshold;      /* number of threads required */
+    int                 counter;        /* current number of threads */
+    int                 cycle;          /* alternate wait cycles (0 or 1) */
+} ANL_barrier_t;
+
+typedef struct _ANL_shared {
+  int ctr;
+  pthread_t *tid;
+  pthread_attr_t attr;
+  int processors;
+  int max_processors;
+} ANL_shared_t;
+#endif
+')
+
+#############################################################
+
+
+divert(0)
